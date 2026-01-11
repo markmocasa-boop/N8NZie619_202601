@@ -1,0 +1,928 @@
+{
+  "name": "A- BETA-  v6 - German Price Tracker - Final",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🇩🇪 German Price Tracker HYBRID\n\n**FIXED v6** - Verkettete Merge-Nodes\n+ Google Sheets Schema repariert\n\nPreispiraten + Lohmeier → Merge1\nMerge1 + Motorland → Merge2\nMerge2 + Agrieuro → Merge3\nMerge3 + Simon-Profi → Merge4\nMerge4 → Process Results",
+        "height": 300,
+        "width": 300,
+        "color": 6
+      },
+      "id": "2bcacad3-9477-406e-807c-ee10bc8f0ddd",
+      "name": "📋 Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9b50677a-f793-45b9-a0f8-e000c90fe58f",
+      "name": "▶️ Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        224,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      },
+      "id": "58682dc0-ad8b-4186-8d3e-ff8e230cbd2e",
+      "name": "⏰ Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk",
+          "mode": "list",
+          "cachedResultName": "Preisvergleich EAN Tabelle",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2137958387,
+          "mode": "list",
+          "cachedResultName": "EAN-Liste",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit#gid=2137958387"
+        },
+        "options": {}
+      },
+      "id": "0184364b-7efa-43ee-b4ce-ece64568dd11",
+      "name": "📊 EANs laden",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        432,
+        624
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gw0DIdDENFkpE7ZW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ean-valid",
+              "leftValue": "={{ $json.EAN }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "34f8c1e2-0547-478f-a5d8-2846ced12ac5",
+      "name": "🔍 Filter",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ac538fe2-07d1-4a59-9815-ac2ba2799d5b",
+      "name": "🔄 Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        832,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ean",
+              "name": "ean",
+              "value": "={{ $json.EAN.toString() }}",
+              "type": "string"
+            },
+            {
+              "id": "produktname",
+              "name": "produktname",
+              "value": "={{ $json.Produktname || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10030fb3-9cf1-487f-b788-0aca2aa69089",
+      "name": "📝 Set Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.preispiraten.de/?q={{ encodeURIComponent($json.produktname || $json.ean) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 8,\n  \"maxScrollHeightPixels\": 3000,\n  \"proxyConfiguration\": { \"useApifyProxy\": true, \"apifyProxyGroups\": [\"RESIDENTIAL\"] },\n  \"requestTimeoutSecs\": 60\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "164913c5-eb89-4c46-a5b1-a535d7428c0e",
+      "name": "🌐 Preispiraten",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        384
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "4adFDtgJ0ZWqLsEi",
+          "name": "Query Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.lohmeier.shop/search?sSearch={{ encodeURIComponent($json.produktname) }}&_ean={{ $json.ean }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "f2dff7ce-18c5-4969-b0f8-ae90f5c1861c",
+      "name": "🏪 Lohmeier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        544
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "4adFDtgJ0ZWqLsEi",
+          "name": "Query Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.motorland.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}&_ean={{ $json.ean }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "c1a35d67-728e-4ded-99d0-ae3311774de8",
+      "name": "🏍️ Motorland",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        704
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "4adFDtgJ0ZWqLsEi",
+          "name": "Query Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.agrieuro.de/suche.php?search={{ encodeURIComponent($json.produktname) }}&_ean={{ $json.ean }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "83bc33ff-46de-4f59-a6c5-8d683ad27131",
+      "name": "🚜 Agrieuro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        864
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "4adFDtgJ0ZWqLsEi",
+          "name": "Query Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.simon-profi-technik.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}&_ean={{ $json.ean }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "49f5026e-2c27-4b00-9758-3c759966cd42",
+      "name": "🔧 Simon-Profi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        1024
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "4adFDtgJ0ZWqLsEi",
+          "name": "Query Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "82f53e4f-0375-4630-ae58-22d66129e68d",
+      "name": "🔀 Merge 1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1552,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "81e48f76-56a8-4f24-9989-520593d20824",
+      "name": "🔀 Merge 2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1744,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "07880ea9-dc25-441f-b624-24424696c6dd",
+      "name": "🔀 Merge 3",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1952,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "de96b06a-35ca-4148-a9c8-7826e5478690",
+      "name": "🔀 Merge 4",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2144,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// KORRIGIERTER CODE - Version 6.0\n// ============================================\n\nconst allItems = $input.all();\n\nconsole.log('=== DEBUG START ===');\nconsole.log('Anzahl Items empfangen:', allItems.length);\n\nlet ean = '';\nlet produktname = '';\n\ntry {\n  const originalData = $('📝 Set Data').first().json;\n  ean = originalData.ean || '';\n  produktname = originalData.produktname || '';\n  console.log('EAN aus Set Data:', ean);\n  console.log('Produktname aus Set Data:', produktname);\n} catch (e) {\n  console.log('Set Data Zugriff fehlgeschlagen, nutze Fallback');\n  for (const item of allItems) {\n    const url = item.json.url || item.json.loadedUrl || '';\n    \n    const eanMatch1 = url.match(/[?&]_ean=(\\d{8,14})/);\n    if (eanMatch1 && !ean) ean = eanMatch1[1];\n    \n    const eanMatch2 = url.match(/[?&]q=(\\d{8,14})(?:&|$)/);\n    if (eanMatch2 && !ean) ean = eanMatch2[1];\n    \n    const sMatch = url.match(/[?&]sSearch=([^&]+)/);\n    if (sMatch && !produktname) {\n      const decoded = decodeURIComponent(sMatch[1].replace(/\\+/g, ' '));\n      if (!/^\\d+$/.test(decoded) && decoded.length > 3) {\n        produktname = decoded;\n      }\n    }\n    \n    const qMatch = url.match(/[?&]q=([^&]+)/);\n    if (qMatch && !produktname) {\n      const decoded = decodeURIComponent(qMatch[1].replace(/\\+/g, ' '));\n      if (!/^\\d+$/.test(decoded) && decoded.length > 3) {\n        produktname = decoded;\n      }\n    }\n  }\n}\n\nif (!ean) {\n  return [{ json: { error: 'Keine EAN gefunden', skip: true } }];\n}\n\nfunction extractKeywords(text) {\n  if (!text) return [];\n  return text.toLowerCase()\n    .replace(/[^a-zäöüß0-9\\s]/g, ' ')\n    .split(/\\s+/)\n    .filter(w => w.length > 2)\n    .filter(w => !['für', 'mit', 'und', 'oder', 'von', 'bei', 'das', 'die', 'der', 'den', 'dem', 'motorsäge', 'motorsage'].includes(w));\n}\n\nconst blacklistKeywords = ['puzzle', 'perlen', 'bead', 'socken', 'spielzeug', 'hülle', 'cover', 'tasche', 'poster', 'sticker', 'shirt', 'hosen', 'kabel', 'adapter', 'set', 'bundle', 'paket', 'zubehör', 'ersatzteil', 'kette', 'schwert', 'schiene'];\nconst referenceKeywords = extractKeywords(produktname);\n\nconst result = {\n  ean: ean,\n  produktname: produktname,\n  timestamp: new Date().toLocaleString('de-DE'),\n  shopPrices: {},\n  cheapestShop: null,\n  cheapestPrice: null,\n  cheapestUrl: null,\n  lohmeierPrice: null,\n  totalShopsFound: 0,\n  debug: {\n    totalItemsReceived: allItems.length,\n    sourcesProcessed: [],\n    itemsPerSource: {},\n    urlsFound: []\n  }\n};\n\nconst allShops = {\n  'otto': 'Otto',\n  'amazon': 'Amazon',\n  'ebay': 'eBay',\n  'kaufland': 'Kaufland',\n  'idealo': 'Idealo',\n  'galaxus': 'Galaxus',\n  'conrad': 'Conrad',\n  'manomano': 'ManoMano',\n  'grube': 'Grube.de',\n  'lohmeier': 'Lohmeier',\n  'motorland': 'Motorland',\n  'agrieuro': 'Agrieuro',\n  'simon': 'Simon-Profi-Technik'\n};\n\nconst modelMatch = produktname.match(/\\b(\\d{3})\\b/);\nconst modelNumber = modelMatch ? modelMatch[1] : null;\n\nfor (const item of allItems) {\n  if (item.json.error || item.json.code === 'ECONNABORTED') {\n    console.log('Item übersprungen wegen Fehler:', item.json.error || item.json.code);\n    continue;\n  }\n  \n  const text = item.json.text || item.json.markdown || '';\n  const sourceUrl = item.json.url || item.json.loadedUrl || '';\n  \n  if (sourceUrl) {\n    result.debug.urlsFound.push(sourceUrl.substring(0, 100));\n  }\n  \n  if (text.length < 50) {\n    console.log('Item übersprungen - Text zu kurz:', text.length, 'URL:', sourceUrl.substring(0, 50));\n    continue;\n  }\n  \n  let sourceShop = null;\n  if (sourceUrl.includes('preispiraten.de')) sourceShop = 'preispiraten';\n  else if (sourceUrl.includes('lohmeier.shop')) sourceShop = 'lohmeier';\n  else if (sourceUrl.includes('motorland.de')) sourceShop = 'motorland';\n  else if (sourceUrl.includes('agrieuro.de')) sourceShop = 'agrieuro';\n  else if (sourceUrl.includes('simon-profi-technik.de')) sourceShop = 'simon';\n  \n  console.log('Verarbeite Source:', sourceShop, 'URL:', sourceUrl.substring(0, 60));\n  \n  if (sourceShop && !result.debug.sourcesProcessed.includes(sourceShop)) {\n    result.debug.sourcesProcessed.push(sourceShop);\n  }\n  result.debug.itemsPerSource[sourceShop || 'unknown'] = \n    (result.debug.itemsPerSource[sourceShop || 'unknown'] || 0) + 1;\n  \n  const lines = text.split('\\n');\n  \n  for (let i = 0; i < lines.length; i++) {\n    const line = lines[i];\n    const priceMatch = line.match(/([\\d.]+,\\d{2})\\s*€/);\n    if (!priceMatch) continue;\n    \n    const price = parseFloat(priceMatch[1].replace(/\\./g, '').replace(',', '.'));\n    if (price < 50 || price > 50000) continue;\n    \n    const context = lines.slice(Math.max(0, i - 8), i + 8).join(' ').toLowerCase();\n    \n    let isBlacklisted = false;\n    for (const kw of blacklistKeywords) {\n      if (context.includes(kw)) {\n        isBlacklisted = true;\n        break;\n      }\n    }\n    if (isBlacklisted) continue;\n    \n    let isValid = false;\n    \n    if (context.includes(ean)) {\n      isValid = true;\n    }\n    \n    if (!isValid && modelNumber && context.includes(modelNumber)) {\n      isValid = true;\n    }\n    \n    if (!isValid) {\n      let matchCount = 0;\n      for (const kw of referenceKeywords) {\n        if (context.includes(kw)) matchCount++;\n      }\n      if (matchCount >= 2) {\n        isValid = true;\n      }\n    }\n    \n    if (!isValid && price >= 400 && price <= 2500) {\n      isValid = true;\n    }\n    \n    if (!isValid) continue;\n    \n    if (sourceShop && sourceShop !== 'preispiraten') {\n      if (!result.shopPrices[sourceShop] || price < result.shopPrices[sourceShop].price) {\n        result.shopPrices[sourceShop] = { \n          name: allShops[sourceShop], \n          price: price, \n          url: sourceUrl\n        };\n        console.log('Direct Shop Preis gefunden:', sourceShop, price);\n        if (sourceShop === 'lohmeier') result.lohmeierPrice = price;\n      }\n      continue;\n    }\n    \n    if (sourceShop === 'preispiraten') {\n      for (const key of Object.keys(allShops)) {\n        const regex = new RegExp('\\\\b' + key + '\\\\b', 'i');\n        if (regex.test(context)) {\n          if (!result.shopPrices[key] || price < result.shopPrices[key].price) {\n            result.shopPrices[key] = { \n              name: allShops[key], \n              price: price, \n              url: sourceUrl\n            };\n            console.log('Preispiraten Shop Preis gefunden:', key, price);\n            if (key === 'lohmeier') result.lohmeierPrice = price;\n          }\n          break;\n        }\n      }\n    }\n  }\n}\n\nlet cheapestShop = null;\nlet cheapestPrice = Infinity;\nlet cheapestUrl = null;\n\nfor (const key of Object.keys(result.shopPrices)) {\n  const shop = result.shopPrices[key];\n  if (shop.price < cheapestPrice) {\n    cheapestPrice = shop.price;\n    cheapestShop = shop.name;\n    cheapestUrl = shop.url;\n  }\n}\n\nresult.cheapestShop = cheapestShop;\nresult.cheapestPrice = cheapestPrice !== Infinity ? cheapestPrice : null;\nresult.cheapestUrl = cheapestUrl;\nresult.totalShopsFound = Object.keys(result.shopPrices).length;\nresult.foundShops = Object.keys(result.shopPrices);\n\nconsole.log('=== DEBUG END ===');\nconsole.log('Sources verarbeitet:', result.debug.sourcesProcessed);\nconsole.log('Shops gefunden:', result.foundShops);\nconsole.log('Total Items:', result.debug.totalItemsReceived);\n\nif (result.debug.sourcesProcessed.length < 3) {\n  result.warning = 'Nur ' + result.debug.sourcesProcessed.length + ' von 5 Quellen verarbeitet: ' + result.debug.sourcesProcessed.join(', ');\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "dc4d5657-025f-4c1b-a07e-dce9c8a30e05",
+      "name": "🔗 Process All Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\n\nif (p.skip || p.error || !p.ean) {\n  return [];\n}\n\nconst today = new Date().toLocaleDateString('de-DE');\nconst formatPrice = (price) => price ? price.toFixed(2).replace('.', ',') : null;\nconst getPrice = (key) => formatPrice(p.shopPrices?.[key]?.price);\n\nconst output = {\n  Datum: today,\n  EAN: p.ean,\n  Produktname: p.produktname || ''\n};\n\nif (getPrice('lohmeier')) output.Lohmeier = getPrice('lohmeier');\nif (getPrice('motorland')) output.Motorland = getPrice('motorland');\nif (getPrice('agrieuro')) output.Agrieuro = getPrice('agrieuro');\nif (getPrice('simon')) output.Simon = getPrice('simon');\nif (getPrice('otto')) output.Otto = getPrice('otto');\nif (getPrice('amazon')) output.Amazon = getPrice('amazon');\nif (getPrice('ebay')) output.eBay = getPrice('ebay');\nif (getPrice('kaufland')) output.Kaufland = getPrice('kaufland');\nif (getPrice('idealo')) output.Idealo = getPrice('idealo');\nif (getPrice('galaxus')) output.Galaxus = getPrice('galaxus');\nif (getPrice('conrad')) output.Conrad = getPrice('conrad');\nif (getPrice('manomano')) output.ManoMano = getPrice('manomano');\nif (p.cheapestShop) output.Guenstigster_Shop = p.cheapestShop;\nif (p.cheapestPrice) output.Guenstigster_Preis = formatPrice(p.cheapestPrice);\nif (p.cheapestUrl) output.Guenstigster_URL = p.cheapestUrl;\nif (p.totalShopsFound > 0) output.Anzahl_Shops = p.totalShopsFound;\n\nreturn [{ json: output }];"
+      },
+      "id": "e6d7d083-ec2e-44a6-86a1-5506a692bdb6",
+      "name": "📋 Prepare Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk",
+          "mode": "list",
+          "cachedResultName": "Preisvergleich EAN Tabelle",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2060674137,
+          "mode": "list",
+          "cachedResultName": "Preisvergleich1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit#gid=2060674137"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "EAN": "={{ $json.EAN }}"
+          },
+          "matchingColumns": [
+            "EAN"
+          ],
+          "schema": [
+            {
+              "id": "EAN",
+              "displayName": "EAN",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Datum",
+              "displayName": "Datum",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produktname",
+              "displayName": "Produktname",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lohmeier",
+              "displayName": "Lohmeier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Motorland",
+              "displayName": "Motorland",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Agrieuro",
+              "displayName": "Agrieuro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Simon",
+              "displayName": "Simon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Otto",
+              "displayName": "Otto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amazon",
+              "displayName": "Amazon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "eBay",
+              "displayName": "eBay",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Kaufland",
+              "displayName": "Kaufland",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Idealo",
+              "displayName": "Idealo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Galaxus",
+              "displayName": "Galaxus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Conrad",
+              "displayName": "Conrad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ManoMano",
+              "displayName": "ManoMano",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Guenstigster_Shop",
+              "displayName": "Guenstigster_Shop",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Guenstigster_Preis",
+              "displayName": "Guenstigster_Preis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Guenstigster_URL",
+              "displayName": "Guenstigster_URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Anzahl_Shops",
+              "displayName": "Anzahl_Shops",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ed963658-7238-41a5-b261-43b6a802a05d",
+      "name": "💾 Save to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2832,
+        832
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gw0DIdDENFkpE7ZW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "20ee5a74-5212-43a0-8126-cdda528b20f1",
+      "name": "⏳ Wait 10s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3040,
+        624
+      ],
+      "webhookId": "e30b6d51-4f75-419c-ab1f-793e1c2acb1b"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Extrahiere den Preis für folgendes Produkt:\nProduktname: {{ $('📝 Set Data').item.json.produktname }}\nEAN: {{ $('📝 Set Data').item.json.ean }}\n\nAus diesem Text:\n{{ $json.text }}\n\nAntworte NUR mit einem JSON-Objekt:\n{\n  \"preis\": <Zahl oder null>,\n  \"währung\": \"EUR\",\n  \"quelle\": \"<Shop-Name>\",\n  \"verfügbar\": <true/false>\n}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1536,
+        240
+      ],
+      "id": "27f8811b-6ae4-419b-a7ad-2242ef973a6d",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "▶️ Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "📊 EANs laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏰ Schedule": {
+      "main": [
+        [
+          {
+            "node": "📊 EANs laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 EANs laden": {
+      "main": [
+        [
+          {
+            "node": "🔍 Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Filter": {
+      "main": [
+        [
+          {
+            "node": "🔄 Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Loop": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait 10s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Set Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Set Data": {
+      "main": [
+        [
+          {
+            "node": "🌐 Preispiraten",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🏪 Lohmeier",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🏍️ Motorland",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🚜 Agrieuro",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔧 Simon-Profi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Preispiraten": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏪 Lohmeier": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🏍️ Motorland": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🚜 Agrieuro": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔧 Simon-Profi": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 4",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge 1": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Merge 2": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Merge 3": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Merge 4": {
+      "main": [
+        [
+          {
+            "node": "🔗 Process All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Process All Results": {
+      "main": [
+        [
+          {
+            "node": "📋 Prepare Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Prepare Sheet": {
+      "main": [
+        [
+          {
+            "node": "💾 Save to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Save to Sheet": {
+      "main": [
+        [
+          {
+            "node": "🔄 Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "9115417d-c482-4add-bdc3-00e3f898dfb4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a320365cb8af0cfc53c3cf643590b40b68314b98ffb543a3f03872d936accf51"
+  },
+  "id": "9SDgkRB6301bRURY",
+  "tags": []
+}
