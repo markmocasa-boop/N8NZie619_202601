@@ -1,0 +1,542 @@
+{
+  "name": "German Price Tracker v7 - AI Enhanced",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🇩🇪 German Price Tracker v7 - AI Enhanced\n\n**NEU: KI-basierte Preisextraktion**\n\nJeder Crawler → OpenAI GPT-4.1-mini → Strukturierte Preisdaten\n\n✅ Genauere Preiserkennung\n✅ Bessere Produktzuordnung\n✅ Weniger Falsch-Positive",
+        "height": 280,
+        "width": 320,
+        "color": 6
+      },
+      "id": "info-note",
+      "name": "📋 Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "▶️ Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [220, 680]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 12 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "⏰ Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 540]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk",
+          "mode": "list",
+          "cachedResultName": "Preisvergleich EAN Tabelle",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2137958387,
+          "mode": "list",
+          "cachedResultName": "EAN-Liste",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit#gid=2137958387"
+        },
+        "options": {}
+      },
+      "id": "load-eans",
+      "name": "📊 EANs laden",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [440, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gw0DIdDENFkpE7ZW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ean-valid",
+              "leftValue": "={{ $json.EAN }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-ean",
+      "name": "🔍 Filter",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [660, 600]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop",
+      "name": "🔄 Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [880, 600]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ean",
+              "name": "ean",
+              "value": "={{ $json.EAN.toString() }}",
+              "type": "string"
+            },
+            {
+              "id": "produktname",
+              "name": "produktname",
+              "value": "={{ $json.Produktname || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-data",
+      "name": "📝 Set Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1100, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.preispiraten.de/?q={{ encodeURIComponent($json.produktname || $json.ean) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 8,\n  \"maxScrollHeightPixels\": 3000,\n  \"proxyConfiguration\": { \"useApifyProxy\": true, \"apifyProxyGroups\": [\"RESIDENTIAL\"] },\n  \"requestTimeoutSecs\": 60\n}",
+        "options": { "timeout": 180000 }
+      },
+      "id": "crawler-preispiraten",
+      "name": "🌐 Preispiraten",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.lohmeier.shop/search?sSearch={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "crawler-lohmeier",
+      "name": "🏪 Lohmeier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 480],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.motorland.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "crawler-motorland",
+      "name": "🏍️ Motorland",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 660],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.agrieuro.de/suche.php?search={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "crawler-agrieuro",
+      "name": "🚜 Agrieuro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 840],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.simon-profi-technik.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "crawler-simon",
+      "name": "🔧 Simon-Profi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 1020],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text und extrahiere Preisinformationen.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Preispiraten.de (Preisvergleich - enthält Preise von verschiedenen Shops)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 8000) : 'Kein Text verfügbar' }}\n\n**Aufgabe:**\nFinde alle Preise die zum gesuchten Produkt passen. Preispiraten zeigt Preise von verschiedenen Shops.\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"preise\": [\n    {\"shop\": \"Amazon\", \"preis\": 899.99, \"verfuegbar\": true},\n    {\"shop\": \"Otto\", \"preis\": 949.00, \"verfuegbar\": true}\n  ],\n  \"guenstigster_preis\": 899.99,\n  \"guenstigster_shop\": \"Amazon\",\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preise für das EXAKTE Produkt (gleiche Modellnummer/EAN)\n- Ignoriere Zubehör, Ersatzteile, ähnliche Produkte\n- Preise als Zahlen ohne Währungssymbol\n- Bei Unsicherheit: gefunden=false"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-preispiraten",
+      "name": "🤖 AI Preispiraten",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Lohmeier.shop (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Lohmeier\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-lohmeier",
+      "name": "🤖 AI Lohmeier",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 480],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Motorland.de (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Motorland\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-motorland",
+      "name": "🤖 AI Motorland",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 660],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Agrieuro.de (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Agrieuro\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-agrieuro",
+      "name": "🤖 AI Agrieuro",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 840],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Simon-Profi-Technik.de (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Simon-Profi\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-simon",
+      "name": "🤖 AI Simon-Profi",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 1020],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-all",
+      "name": "🔀 Merge All",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1880, 600],
+      "notesInFlow": true,
+      "notes": "Sammelt alle AI-Ergebnisse"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// AI-basierte Preisverarbeitung v7\n// ============================================\n\nconst items = $input.all();\nlet ean = '';\nlet produktname = '';\n\ntry {\n  const originalData = $('📝 Set Data').first().json;\n  ean = originalData.ean || '';\n  produktname = originalData.produktname || '';\n} catch (e) {\n  console.log('Set Data nicht verfügbar');\n}\n\nconst result = {\n  ean: ean,\n  produktname: produktname,\n  timestamp: new Date().toLocaleString('de-DE'),\n  shopPrices: {},\n  cheapestShop: null,\n  cheapestPrice: null,\n  totalShopsFound: 0\n};\n\n// Verarbeite AI-Ergebnisse\nfor (const item of items) {\n  const data = item.json;\n  \n  // Überspringe wenn nicht gefunden oder Fehler\n  if (!data || data.gefunden === false || data.error) {\n    continue;\n  }\n  \n  // Preispiraten hat mehrere Preise\n  if (data.preise && Array.isArray(data.preise)) {\n    for (const p of data.preise) {\n      if (p.preis && p.shop && p.verfuegbar !== false) {\n        const shopKey = p.shop.toLowerCase().replace(/[^a-z]/g, '');\n        if (!result.shopPrices[shopKey] || p.preis < result.shopPrices[shopKey].price) {\n          result.shopPrices[shopKey] = {\n            name: p.shop,\n            price: p.preis\n          };\n        }\n      }\n    }\n  }\n  \n  // Einzelne Shop-Ergebnisse\n  if (data.shop && data.preis && data.gefunden && data.verfuegbar !== false) {\n    const shopKey = data.shop.toLowerCase().replace(/[^a-z]/g, '');\n    if (!result.shopPrices[shopKey] || data.preis < result.shopPrices[shopKey].price) {\n      result.shopPrices[shopKey] = {\n        name: data.shop,\n        price: data.preis\n      };\n    }\n  }\n}\n\n// Finde günstigsten\nlet cheapestPrice = Infinity;\nfor (const key of Object.keys(result.shopPrices)) {\n  const shop = result.shopPrices[key];\n  if (shop.price < cheapestPrice) {\n    cheapestPrice = shop.price;\n    result.cheapestShop = shop.name;\n    result.cheapestPrice = shop.price;\n  }\n}\n\nresult.totalShopsFound = Object.keys(result.shopPrices).length;\n\nif (result.totalShopsFound === 0) {\n  result.warning = 'Keine Preise gefunden';\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "process-ai-results",
+      "name": "🔗 Process AI Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\n\nif (!p.ean || p.totalShopsFound === 0) {\n  return [];\n}\n\nconst today = new Date().toLocaleDateString('de-DE');\nconst formatPrice = (price) => price ? price.toFixed(2).replace('.', ',') : '';\nconst getPrice = (key) => formatPrice(p.shopPrices?.[key]?.price);\n\nconst output = {\n  Datum: today,\n  EAN: p.ean,\n  Produktname: p.produktname || '',\n  Lohmeier: getPrice('lohmeier'),\n  Motorland: getPrice('motorland'),\n  Agrieuro: getPrice('agrieuro'),\n  Simon: getPrice('simonprofi') || getPrice('simon'),\n  Otto: getPrice('otto'),\n  Amazon: getPrice('amazon'),\n  eBay: getPrice('ebay'),\n  Kaufland: getPrice('kaufland'),\n  Idealo: getPrice('idealo'),\n  Galaxus: getPrice('galaxus'),\n  Conrad: getPrice('conrad'),\n  ManoMano: getPrice('manomano'),\n  Guenstigster_Shop: p.cheapestShop || '',\n  Guenstigster_Preis: formatPrice(p.cheapestPrice),\n  Anzahl_Shops: p.totalShopsFound\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "prepare-sheet",
+      "name": "📋 Prepare Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2320, 600]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk",
+          "mode": "list",
+          "cachedResultName": "Preisvergleich EAN Tabelle",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2060674137,
+          "mode": "list",
+          "cachedResultName": "Preisvergleich1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit#gid=2060674137"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["EAN"],
+          "schema": [
+            { "id": "EAN", "displayName": "EAN", "required": false, "defaultMatch": true, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "save-sheet",
+      "name": "💾 Save to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2540, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gw0DIdDENFkpE7ZW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5
+      },
+      "id": "wait",
+      "name": "⏳ Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2760, 400],
+      "webhookId": "price-tracker-wait"
+    }
+  ],
+  "connections": {
+    "▶️ Manual Trigger": {
+      "main": [[{ "node": "📊 EANs laden", "type": "main", "index": 0 }]]
+    },
+    "⏰ Schedule": {
+      "main": [[{ "node": "📊 EANs laden", "type": "main", "index": 0 }]]
+    },
+    "📊 EANs laden": {
+      "main": [[{ "node": "🔍 Filter", "type": "main", "index": 0 }]]
+    },
+    "🔍 Filter": {
+      "main": [[{ "node": "🔄 Loop", "type": "main", "index": 0 }]]
+    },
+    "🔄 Loop": {
+      "main": [
+        [{ "node": "⏳ Wait 5s", "type": "main", "index": 0 }],
+        [{ "node": "📝 Set Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "📝 Set Data": {
+      "main": [[
+        { "node": "🌐 Preispiraten", "type": "main", "index": 0 },
+        { "node": "🏪 Lohmeier", "type": "main", "index": 0 },
+        { "node": "🏍️ Motorland", "type": "main", "index": 0 },
+        { "node": "🚜 Agrieuro", "type": "main", "index": 0 },
+        { "node": "🔧 Simon-Profi", "type": "main", "index": 0 }
+      ]]
+    },
+    "🌐 Preispiraten": {
+      "main": [[{ "node": "🤖 AI Preispiraten", "type": "main", "index": 0 }]]
+    },
+    "🏪 Lohmeier": {
+      "main": [[{ "node": "🤖 AI Lohmeier", "type": "main", "index": 0 }]]
+    },
+    "🏍️ Motorland": {
+      "main": [[{ "node": "🤖 AI Motorland", "type": "main", "index": 0 }]]
+    },
+    "🚜 Agrieuro": {
+      "main": [[{ "node": "🤖 AI Agrieuro", "type": "main", "index": 0 }]]
+    },
+    "🔧 Simon-Profi": {
+      "main": [[{ "node": "🤖 AI Simon-Profi", "type": "main", "index": 0 }]]
+    },
+    "🤖 AI Preispiraten": {
+      "main": [[{ "node": "🔀 Merge All", "type": "main", "index": 0 }]]
+    },
+    "🤖 AI Lohmeier": {
+      "main": [[{ "node": "🔀 Merge All", "type": "main", "index": 0 }]]
+    },
+    "🤖 AI Motorland": {
+      "main": [[{ "node": "🔀 Merge All", "type": "main", "index": 0 }]]
+    },
+    "🤖 AI Agrieuro": {
+      "main": [[{ "node": "🔀 Merge All", "type": "main", "index": 0 }]]
+    },
+    "🤖 AI Simon-Profi": {
+      "main": [[{ "node": "🔀 Merge All", "type": "main", "index": 0 }]]
+    },
+    "🔀 Merge All": {
+      "main": [[{ "node": "🔗 Process AI Results", "type": "main", "index": 0 }]]
+    },
+    "🔗 Process AI Results": {
+      "main": [[{ "node": "📋 Prepare Sheet", "type": "main", "index": 0 }]]
+    },
+    "📋 Prepare Sheet": {
+      "main": [[{ "node": "💾 Save to Sheet", "type": "main", "index": 0 }]]
+    },
+    "💾 Save to Sheet": {
+      "main": [[{ "node": "🔄 Loop", "type": "main", "index": 0 }]]
+    },
+    "⏳ Wait 5s": {
+      "main": [[]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
