@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🇩🇪 German Price Tracker v7 - AI Enhanced\n\n**NEU: KI-basierte Preisextraktion**\n\nJeder Crawler → OpenAI GPT-4.1-mini → Strukturierte Preisdaten\n\n✅ Genauere Preiserkennung\n✅ Bessere Produktzuordnung\n✅ Weniger Falsch-Positive",
+        "content": "## 🇩🇪 German Price Tracker v7 - AI Enhanced\n\n**NEU: KI-basierte Preisextraktion mit Screenshot-Analyse**\n\nJeder Crawler → Screenshot + Markdown → GPT-4o Vision\n\n✅ Visuelle Preiserkennung\n✅ Bessere Produktzuordnung\n✅ Ignoriert Zubehör automatisch",
         "height": 280,
         "width": 320,
         "color": 6
@@ -139,7 +139,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.preispiraten.de/?q={{ encodeURIComponent($json.produktname || $json.ean) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 8,\n  \"maxScrollHeightPixels\": 3000,\n  \"proxyConfiguration\": { \"useApifyProxy\": true, \"apifyProxyGroups\": [\"RESIDENTIAL\"] },\n  \"requestTimeoutSecs\": 60\n}",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.preispiraten.de/?q={{ encodeURIComponent($json.produktname || $json.ean) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 10,\n  \"maxScrollHeightPixels\": 5000,\n  \"saveScreenshots\": true,\n  \"screenshotQuality\": 80,\n  \"proxyConfiguration\": { \"useApifyProxy\": true, \"apifyProxyGroups\": [\"RESIDENTIAL\"] },\n  \"requestTimeoutSecs\": 90\n}",
         "options": { "timeout": 180000 }
       },
       "id": "crawler-preispiraten",
@@ -163,7 +163,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.lohmeier.shop/search?sSearch={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.lohmeier.shop/search?sSearch={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"saveScreenshots\": true,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
         "options": { "timeout": 120000 }
       },
       "id": "crawler-lohmeier",
@@ -187,7 +187,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.motorland.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.motorland.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"saveScreenshots\": true,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
         "options": { "timeout": 120000 }
       },
       "id": "crawler-motorland",
@@ -211,7 +211,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.agrieuro.de/suche.php?search={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.agrieuro.de/suche.php?search={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"saveScreenshots\": true,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
         "options": { "timeout": 120000 }
       },
       "id": "crawler-agrieuro",
@@ -235,7 +235,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.simon-profi-technik.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.simon-profi-technik.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 5,\n  \"saveScreenshots\": true,\n  \"proxyConfiguration\": { \"useApifyProxy\": true },\n  \"requestTimeoutSecs\": 45\n}",
         "options": { "timeout": 120000 }
       },
       "id": "crawler-simon",
@@ -253,11 +253,11 @@
     },
     {
       "parameters": {
-        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
         "messages": {
           "values": [
             {
-              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text und extrahiere Preisinformationen.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Preispiraten.de (Preisvergleich - enthält Preise von verschiedenen Shops)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 8000) : 'Kein Text verfügbar' }}\n\n**Aufgabe:**\nFinde alle Preise die zum gesuchten Produkt passen. Preispiraten zeigt Preise von verschiedenen Shops.\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"preise\": [\n    {\"shop\": \"Amazon\", \"preis\": 899.99, \"verfuegbar\": true},\n    {\"shop\": \"Otto\", \"preis\": 949.00, \"verfuegbar\": true}\n  ],\n  \"guenstigster_preis\": 899.99,\n  \"guenstigster_shop\": \"Amazon\",\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preise für das EXAKTE Produkt (gleiche Modellnummer/EAN)\n- Ignoriere Zubehör, Ersatzteile, ähnliche Produkte\n- Preise als Zahlen ohne Währungssymbol\n- Bei Unsicherheit: gefunden=false"
+              "content": "=Du bist ein Preisextraktions-Experte. Analysiere die Suchergebnisse von Preispiraten.de.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n- Typ: MOTORSÄGE (Kettensäge) - NICHT Zubehör!\n\n**WICHTIGE UNTERSCHEIDUNG:**\n- ✅ RICHTIG: Komplette Motorsäge/Kettensäge (Preis typisch 400-2000€)\n- ❌ FALSCH: Sägeketten, Schwerter, Ersatzteile, Zubehör (Preis typisch 10-100€)\n\n**MARKDOWN DER SEITE:**\n{{ $json[0].markdown ? $json[0].markdown.substring(0, 12000) : 'Kein Markdown' }}\n\n**SCREENSHOT URL (falls verfügbar):**\n{{ $json[0].screenshotUrl || 'Kein Screenshot' }}\n\n**AUFGABE:**\nFinde Preise für die KOMPLETTE MOTORSÄGE von verschiedenen Shops.\nPreispiraten zeigt Preise von: eBay, Amazon, Otto, Kaufland, Idealo, Galaxus, etc.\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true,\n  \"produkt_match\": \"exakt\",\n  \"preise\": [\n    {\"shop\": \"eBay\", \"preis\": 879.99, \"produkt\": \"STIHL MS 261 C-M Motorsäge\"},\n    {\"shop\": \"Amazon\", \"preis\": 899.00, \"produkt\": \"STIHL MS 261...\"}\n  ],\n  \"guenstigster_preis\": 879.99,\n  \"guenstigster_shop\": \"eBay\",\n  \"ignoriert\": [\"Sägekette 22,50€\", \"Schwert 45€\"],\n  \"notiz\": \"2 Angebote für Motorsäge gefunden, Zubehör ignoriert\"\n}\n```\n\n**REGELN:**\n- NUR Preise für komplette Motorsägen (400-2000€ Bereich)\n- IGNORIERE alles unter 200€ (das ist Zubehör!)\n- Achte auf Produktnamen mit \"Motorsäge\", \"Kettensäge\", \"Chainsaw\"\n- Bei Unsicherheit: gefunden=false"
             }
           ]
         },
@@ -278,11 +278,11 @@
     },
     {
       "parameters": {
-        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
         "messages": {
           "values": [
             {
-              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Lohmeier.shop (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Lohmeier\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+              "content": "=Du bist ein Preisextraktions-Experte für Online-Shops.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n- Typ: MOTORSÄGE - keine Ersatzteile!\n\n**SHOP:** Lohmeier.shop\n\n**MARKDOWN:**\n{{ $json[0].markdown ? $json[0].markdown.substring(0, 8000) : 'Kein Markdown' }}\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Lohmeier\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklärung\"\n}\n```\n\n**REGELN:**\n- Nur Preis für KOMPLETTE Motorsäge (nicht Kette, Schwert, etc.)\n- Preis muss im Bereich 300-2500€ liegen\n- null wenn nicht gefunden"
             }
           ]
         },
@@ -303,11 +303,11 @@
     },
     {
       "parameters": {
-        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
         "messages": {
           "values": [
             {
-              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Motorland.de (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Motorland\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+              "content": "=Du bist ein Preisextraktions-Experte für Online-Shops.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n- Typ: MOTORSÄGE - keine Ersatzteile!\n\n**SHOP:** Motorland.de\n\n**MARKDOWN:**\n{{ $json[0].markdown ? $json[0].markdown.substring(0, 8000) : 'Kein Markdown' }}\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Motorland\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklärung\"\n}\n```\n\n**REGELN:**\n- Nur Preis für KOMPLETTE Motorsäge\n- Preis muss im Bereich 300-2500€ liegen\n- null wenn nicht gefunden"
             }
           ]
         },
@@ -328,11 +328,11 @@
     },
     {
       "parameters": {
-        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
         "messages": {
           "values": [
             {
-              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Agrieuro.de (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Agrieuro\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+              "content": "=Du bist ein Preisextraktions-Experte für Online-Shops.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n- Typ: MOTORSÄGE - keine Ersatzteile!\n\n**SHOP:** Agrieuro.de\n\n**MARKDOWN:**\n{{ $json[0].markdown ? $json[0].markdown.substring(0, 8000) : 'Kein Markdown' }}\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Agrieuro\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklärung\"\n}\n```\n\n**REGELN:**\n- Nur Preis für KOMPLETTE Motorsäge\n- Preis muss im Bereich 300-2500€ liegen\n- null wenn nicht gefunden"
             }
           ]
         },
@@ -353,11 +353,11 @@
     },
     {
       "parameters": {
-        "modelId": { "__rl": true, "value": "gpt-4.1-mini", "mode": "list", "cachedResultName": "GPT-4.1-MINI" },
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
         "messages": {
           "values": [
             {
-              "content": "=Du bist ein Preisextraktions-Assistent. Analysiere den folgenden gecrawlten Text von einem Online-Shop.\n\n**Gesuchtes Produkt:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n\n**Quelle:** Simon-Profi-Technik.de (Direkter Shop)\n\n**Gecrawlter Text:**\n{{ $json[0].text ? $json[0].text.substring(0, 6000) : 'Kein Text verfügbar' }}\n\n**Antworte NUR mit diesem JSON-Format:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"unsicher\" | \"nicht_gefunden\",\n  \"shop\": \"Simon-Profi\",\n  \"preis\": 899.99,\n  \"verfuegbar\": true/false,\n  \"notiz\": \"kurze Erklärung\"\n}\n```\n\nWichtig:\n- Nur Preis für das EXAKTE Produkt\n- preis als Zahl ohne € Zeichen (null wenn nicht gefunden)\n- Bei Unsicherheit: gefunden=false"
+              "content": "=Du bist ein Preisextraktions-Experte für Online-Shops.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('📝 Set Data').item.json.produktname }}\n- EAN: {{ $('📝 Set Data').item.json.ean }}\n- Typ: MOTORSÄGE - keine Ersatzteile!\n\n**SHOP:** Simon-Profi-Technik.de\n\n**MARKDOWN:**\n{{ $json[0].markdown ? $json[0].markdown.substring(0, 8000) : 'Kein Markdown' }}\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Simon-Profi\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklärung\"\n}\n```\n\n**REGELN:**\n- Nur Preis für KOMPLETTE Motorsäge\n- Preis muss im Bereich 300-2500€ liegen\n- null wenn nicht gefunden"
             }
           ]
         },
@@ -392,7 +392,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ============================================\n// AI-basierte Preisverarbeitung v7\n// ============================================\n\nconst items = $input.all();\nlet ean = '';\nlet produktname = '';\n\ntry {\n  const originalData = $('📝 Set Data').first().json;\n  ean = originalData.ean || '';\n  produktname = originalData.produktname || '';\n} catch (e) {\n  console.log('Set Data nicht verfügbar');\n}\n\nconst result = {\n  ean: ean,\n  produktname: produktname,\n  timestamp: new Date().toLocaleString('de-DE'),\n  shopPrices: {},\n  cheapestShop: null,\n  cheapestPrice: null,\n  totalShopsFound: 0\n};\n\n// Verarbeite AI-Ergebnisse\nfor (const item of items) {\n  const data = item.json;\n  \n  // Überspringe wenn nicht gefunden oder Fehler\n  if (!data || data.gefunden === false || data.error) {\n    continue;\n  }\n  \n  // Preispiraten hat mehrere Preise\n  if (data.preise && Array.isArray(data.preise)) {\n    for (const p of data.preise) {\n      if (p.preis && p.shop && p.verfuegbar !== false) {\n        const shopKey = p.shop.toLowerCase().replace(/[^a-z]/g, '');\n        if (!result.shopPrices[shopKey] || p.preis < result.shopPrices[shopKey].price) {\n          result.shopPrices[shopKey] = {\n            name: p.shop,\n            price: p.preis\n          };\n        }\n      }\n    }\n  }\n  \n  // Einzelne Shop-Ergebnisse\n  if (data.shop && data.preis && data.gefunden && data.verfuegbar !== false) {\n    const shopKey = data.shop.toLowerCase().replace(/[^a-z]/g, '');\n    if (!result.shopPrices[shopKey] || data.preis < result.shopPrices[shopKey].price) {\n      result.shopPrices[shopKey] = {\n        name: data.shop,\n        price: data.preis\n      };\n    }\n  }\n}\n\n// Finde günstigsten\nlet cheapestPrice = Infinity;\nfor (const key of Object.keys(result.shopPrices)) {\n  const shop = result.shopPrices[key];\n  if (shop.price < cheapestPrice) {\n    cheapestPrice = shop.price;\n    result.cheapestShop = shop.name;\n    result.cheapestPrice = shop.price;\n  }\n}\n\nresult.totalShopsFound = Object.keys(result.shopPrices).length;\n\nif (result.totalShopsFound === 0) {\n  result.warning = 'Keine Preise gefunden';\n}\n\nreturn [{ json: result }];"
+        "jsCode": "// ============================================\n// AI-basierte Preisverarbeitung v7.1\n// Mit verbesserter Zubehör-Filterung\n// ============================================\n\nconst items = $input.all();\nlet ean = '';\nlet produktname = '';\n\ntry {\n  const originalData = $('📝 Set Data').first().json;\n  ean = originalData.ean || '';\n  produktname = originalData.produktname || '';\n} catch (e) {\n  console.log('Set Data nicht verfügbar');\n}\n\nconst result = {\n  ean: ean,\n  produktname: produktname,\n  timestamp: new Date().toLocaleString('de-DE'),\n  shopPrices: {},\n  cheapestShop: null,\n  cheapestPrice: null,\n  totalShopsFound: 0,\n  ignoredItems: []\n};\n\n// Minimaler Preis für Motorsägen (filtert Zubehör)\nconst MIN_PRICE = 200;\nconst MAX_PRICE = 5000;\n\n// Verarbeite AI-Ergebnisse\nfor (const item of items) {\n  const data = item.json;\n  \n  if (!data || data.gefunden === false || data.error) {\n    continue;\n  }\n  \n  // Preispiraten hat mehrere Preise\n  if (data.preise && Array.isArray(data.preise)) {\n    for (const p of data.preise) {\n      // Preis-Validierung\n      if (!p.preis || p.preis < MIN_PRICE || p.preis > MAX_PRICE) {\n        if (p.preis) result.ignoredItems.push(`${p.shop}: ${p.preis}€ (zu niedrig)`);\n        continue;\n      }\n      \n      if (p.shop && p.verfuegbar !== false) {\n        const shopKey = p.shop.toLowerCase().replace(/[^a-z]/g, '');\n        if (!result.shopPrices[shopKey] || p.preis < result.shopPrices[shopKey].price) {\n          result.shopPrices[shopKey] = {\n            name: p.shop,\n            price: p.preis,\n            produkt: p.produkt || ''\n          };\n        }\n      }\n    }\n  }\n  \n  // Ignorierte Items aus Preispiraten\n  if (data.ignoriert && Array.isArray(data.ignoriert)) {\n    result.ignoredItems = result.ignoredItems.concat(data.ignoriert);\n  }\n  \n  // Einzelne Shop-Ergebnisse\n  if (data.shop && data.preis && data.gefunden && data.verfuegbar !== false) {\n    // Preis-Validierung\n    if (data.preis < MIN_PRICE || data.preis > MAX_PRICE) {\n      result.ignoredItems.push(`${data.shop}: ${data.preis}€ (außerhalb Bereich)`);\n      continue;\n    }\n    \n    const shopKey = data.shop.toLowerCase().replace(/[^a-z]/g, '');\n    if (!result.shopPrices[shopKey] || data.preis < result.shopPrices[shopKey].price) {\n      result.shopPrices[shopKey] = {\n        name: data.shop,\n        price: data.preis,\n        produkt: data.produkt_gefunden || ''\n      };\n    }\n  }\n}\n\n// Finde günstigsten\nlet cheapestPrice = Infinity;\nfor (const key of Object.keys(result.shopPrices)) {\n  const shop = result.shopPrices[key];\n  if (shop.price < cheapestPrice) {\n    cheapestPrice = shop.price;\n    result.cheapestShop = shop.name;\n    result.cheapestPrice = shop.price;\n  }\n}\n\nresult.totalShopsFound = Object.keys(result.shopPrices).length;\n\nif (result.totalShopsFound === 0) {\n  result.warning = 'Keine Preise für Motorsäge gefunden (nur Zubehör?)';\n}\n\nreturn [{ json: result }];"
       },
       "id": "process-ai-results",
       "name": "🔗 Process AI Results",
@@ -402,7 +402,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $input.first().json;\n\nif (!p.ean || p.totalShopsFound === 0) {\n  return [];\n}\n\nconst today = new Date().toLocaleDateString('de-DE');\nconst formatPrice = (price) => price ? price.toFixed(2).replace('.', ',') : '';\nconst getPrice = (key) => formatPrice(p.shopPrices?.[key]?.price);\n\nconst output = {\n  Datum: today,\n  EAN: p.ean,\n  Produktname: p.produktname || '',\n  Lohmeier: getPrice('lohmeier'),\n  Motorland: getPrice('motorland'),\n  Agrieuro: getPrice('agrieuro'),\n  Simon: getPrice('simonprofi') || getPrice('simon'),\n  Otto: getPrice('otto'),\n  Amazon: getPrice('amazon'),\n  eBay: getPrice('ebay'),\n  Kaufland: getPrice('kaufland'),\n  Idealo: getPrice('idealo'),\n  Galaxus: getPrice('galaxus'),\n  Conrad: getPrice('conrad'),\n  ManoMano: getPrice('manomano'),\n  Guenstigster_Shop: p.cheapestShop || '',\n  Guenstigster_Preis: formatPrice(p.cheapestPrice),\n  Anzahl_Shops: p.totalShopsFound\n};\n\nreturn [{ json: output }];"
+        "jsCode": "const p = $input.first().json;\n\nif (!p.ean) {\n  return [];\n}\n\nconst today = new Date().toLocaleDateString('de-DE');\nconst formatPrice = (price) => price ? price.toFixed(2).replace('.', ',') : '';\nconst getPrice = (key) => formatPrice(p.shopPrices?.[key]?.price);\n\nconst output = {\n  Datum: today,\n  EAN: p.ean,\n  Produktname: p.produktname || '',\n  Lohmeier: getPrice('lohmeier'),\n  Motorland: getPrice('motorland'),\n  Agrieuro: getPrice('agrieuro'),\n  Simon: getPrice('simonprofi') || getPrice('simon'),\n  Otto: getPrice('otto'),\n  Amazon: getPrice('amazon'),\n  eBay: getPrice('ebay'),\n  Kaufland: getPrice('kaufland'),\n  Idealo: getPrice('idealo'),\n  Galaxus: getPrice('galaxus'),\n  Conrad: getPrice('conrad'),\n  ManoMano: getPrice('manomano'),\n  Guenstigster_Shop: p.cheapestShop || '',\n  Guenstigster_Preis: formatPrice(p.cheapestPrice),\n  Anzahl_Shops: p.totalShopsFound,\n  Hinweis: p.warning || ''\n};\n\nreturn [{ json: output }];"
       },
       "id": "prepare-sheet",
       "name": "📋 Prepare Sheet",
