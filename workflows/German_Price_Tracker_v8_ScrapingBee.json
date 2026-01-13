@@ -1,0 +1,664 @@
+{
+  "name": "German Price Tracker v8 - ScrapingBee",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## German Price Tracker v8 - ScrapingBee\n\n**NEU: ScrapingBee statt Apify für problematische Shops**\n\n- Lohmeier, Motorland, Agrieuro, Simon-Profi: ScrapingBee\n- Preispiraten: Apify (funktioniert)\n\n**Vorteile ScrapingBee:**\n- JavaScript-Rendering\n- Cloudflare-Bypass\n- Premium Proxies\n\n**WICHTIG:** ScrapingBee API Key in Credentials eintragen!",
+        "height": 320,
+        "width": 360,
+        "color": 5
+      },
+      "id": "info-note",
+      "name": "Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [220, 680]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 12 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 540]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk",
+          "mode": "list",
+          "cachedResultName": "Preisvergleich EAN Tabelle",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2137958387,
+          "mode": "list",
+          "cachedResultName": "EAN-Liste",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit#gid=2137958387"
+        },
+        "options": {}
+      },
+      "id": "load-eans",
+      "name": "EANs laden",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [440, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gw0DIdDENFkpE7ZW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ean-valid",
+              "leftValue": "={{ $json.EAN }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-ean",
+      "name": "Filter",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [660, 600]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [880, 600]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ean",
+              "name": "ean",
+              "value": "={{ $json.EAN.toString() }}",
+              "type": "string"
+            },
+            {
+              "id": "produktname",
+              "name": "produktname",
+              "value": "={{ $json.Produktname || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-data",
+      "name": "Set Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1100, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~website-content-crawler/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [{ \"url\": \"https://www.preispiraten.de/?q={{ encodeURIComponent($json.produktname || $json.ean) }}\" }],\n  \"crawlerType\": \"playwright:firefox\",\n  \"maxCrawlDepth\": 0,\n  \"maxCrawlPages\": 1,\n  \"dynamicContentWaitSecs\": 10,\n  \"maxScrollHeightPixels\": 5000,\n  \"saveScreenshots\": true,\n  \"screenshotQuality\": 80,\n  \"proxyConfiguration\": { \"useApifyProxy\": true, \"apifyProxyGroups\": [\"RESIDENTIAL\"] },\n  \"requestTimeoutSecs\": 90\n}",
+        "options": { "timeout": 180000 }
+      },
+      "id": "crawler-preispiraten",
+      "name": "Preispiraten (Apify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Auxpkk79tNtA85GJ",
+          "name": "Apify API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://app.scrapingbee.com/api/v1/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "=https://www.lohmeier.shop/search?sSearch={{ encodeURIComponent($json.produktname) }}"
+            },
+            {
+              "name": "render_js",
+              "value": "true"
+            },
+            {
+              "name": "premium_proxy",
+              "value": "true"
+            },
+            {
+              "name": "wait",
+              "value": "5000"
+            },
+            {
+              "name": "block_ads",
+              "value": "true"
+            },
+            {
+              "name": "block_resources",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "sb-lohmeier",
+      "name": "Lohmeier (ScrapingBee)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 400],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "ScrapingBee_API",
+          "name": "ScrapingBee API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://app.scrapingbee.com/api/v1/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "=https://www.motorland.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}"
+            },
+            {
+              "name": "render_js",
+              "value": "true"
+            },
+            {
+              "name": "premium_proxy",
+              "value": "true"
+            },
+            {
+              "name": "wait",
+              "value": "5000"
+            },
+            {
+              "name": "block_ads",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "sb-motorland",
+      "name": "Motorland (ScrapingBee)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 600],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "ScrapingBee_API",
+          "name": "ScrapingBee API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://app.scrapingbee.com/api/v1/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "=https://www.agrieuro.de/suche.php?search={{ encodeURIComponent($json.produktname) }}"
+            },
+            {
+              "name": "render_js",
+              "value": "true"
+            },
+            {
+              "name": "premium_proxy",
+              "value": "true"
+            },
+            {
+              "name": "stealth_proxy",
+              "value": "true"
+            },
+            {
+              "name": "wait",
+              "value": "5000"
+            },
+            {
+              "name": "block_ads",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "sb-agrieuro",
+      "name": "Agrieuro (ScrapingBee)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 800],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "ScrapingBee_API",
+          "name": "ScrapingBee API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://app.scrapingbee.com/api/v1/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "=https://www.simon-profi-technik.de/catalogsearch/result/?q={{ encodeURIComponent($json.produktname) }}"
+            },
+            {
+              "name": "render_js",
+              "value": "true"
+            },
+            {
+              "name": "premium_proxy",
+              "value": "true"
+            },
+            {
+              "name": "wait",
+              "value": "5000"
+            },
+            {
+              "name": "block_ads",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "sb-simon",
+      "name": "Simon-Profi (ScrapingBee)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 1000],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "ScrapingBee_API",
+          "name": "ScrapingBee API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Experte. Analysiere die Suchergebnisse von Preispiraten.de.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('Set Data').item.json.produktname }}\n- EAN: {{ $('Set Data').item.json.ean }}\n- Typ: MOTORSAEGE (Kettensaege) - NICHT Zubehoer!\n\n**WICHTIGE UNTERSCHEIDUNG:**\n- RICHTIG: Komplette Motorsaege/Kettensaege (Preis typisch 400-2000 Euro)\n- FALSCH: Saegeketten, Schwerter, Ersatzteile, Zubehoer (Preis typisch 10-100 Euro)\n\n**MARKDOWN DER SEITE:**\n{{ $json[0].markdown ? $json[0].markdown.substring(0, 12000) : 'Kein Markdown' }}\n\n**AUFGABE:**\nFinde Preise fuer die KOMPLETTE MOTORSAEGE von verschiedenen Shops.\nPreispiraten zeigt Preise von: eBay, Amazon, Otto, Kaufland, Idealo, Galaxus, etc.\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true,\n  \"produkt_match\": \"exakt\",\n  \"preise\": [\n    {\"shop\": \"eBay\", \"preis\": 879.99, \"produkt\": \"STIHL MS 261 C-M Motorsaege\"},\n    {\"shop\": \"Amazon\", \"preis\": 899.00, \"produkt\": \"STIHL MS 261...\"}\n  ],\n  \"guenstigster_preis\": 879.99,\n  \"guenstigster_shop\": \"eBay\",\n  \"ignoriert\": [\"Saegekette 22,50 Euro\", \"Schwert 45 Euro\"],\n  \"notiz\": \"2 Angebote fuer Motorsaege gefunden, Zubehoer ignoriert\"\n}\n```\n\n**REGELN:**\n- NUR Preise fuer komplette Motorsaegen (400-2000 Euro Bereich)\n- IGNORIERE alles unter 200 Euro (das ist Zubehoer!)\n- Achte auf Produktnamen mit \"Motorsaege\", \"Kettensaege\", \"Chainsaw\"\n- Bei Unsicherheit: gefunden=false"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-preispiraten",
+      "name": "AI Preispiraten",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Experte. Analysiere den HTML-Code einer Shop-Suchergebnisseite.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('Set Data').item.json.produktname }}\n- EAN: {{ $('Set Data').item.json.ean }}\n- Typ: MOTORSAEGE - keine Ersatzteile!\n\n**SHOP:** Lohmeier.shop\n\n**HTML DER SEITE (gekuerzt):**\n{{ typeof $json.data === 'string' ? $json.data.substring(0, 15000) : JSON.stringify($json).substring(0, 15000) }}\n\n**AUFGABE:**\nSuche im HTML nach Produkten und Preisen. Typische Muster:\n- class=\"price\" oder data-price\n- Preise im Format: 899,00 Euro oder 899.00 EUR\n- Produkttitel in h2, h3, oder class=\"product-title\"\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Lohmeier\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklaerung\"\n}\n```\n\n**REGELN:**\n- Nur Preis fuer KOMPLETTE Motorsaege (nicht Kette, Schwert, etc.)\n- Preis muss im Bereich 300-2500 Euro liegen\n- null wenn nicht gefunden"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-lohmeier",
+      "name": "AI Lohmeier",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Experte. Analysiere den HTML-Code einer Shop-Suchergebnisseite.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('Set Data').item.json.produktname }}\n- EAN: {{ $('Set Data').item.json.ean }}\n- Typ: MOTORSAEGE - keine Ersatzteile!\n\n**SHOP:** Motorland.de\n\n**HTML DER SEITE (gekuerzt):**\n{{ typeof $json.data === 'string' ? $json.data.substring(0, 15000) : JSON.stringify($json).substring(0, 15000) }}\n\n**AUFGABE:**\nSuche im HTML nach Produkten und Preisen. Typische Muster:\n- class=\"price\" oder data-price\n- Schema.org Product JSON-LD\n- Preise im Format: 899,00 Euro\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Motorland\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklaerung\"\n}\n```\n\n**REGELN:**\n- Nur Preis fuer KOMPLETTE Motorsaege\n- Preis muss im Bereich 300-2500 Euro liegen\n- null wenn nicht gefunden"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-motorland",
+      "name": "AI Motorland",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 600],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Experte. Analysiere den HTML-Code einer Shop-Suchergebnisseite.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('Set Data').item.json.produktname }}\n- EAN: {{ $('Set Data').item.json.ean }}\n- Typ: MOTORSAEGE - keine Ersatzteile!\n\n**SHOP:** Agrieuro.de\n\n**HTML DER SEITE (gekuerzt):**\n{{ typeof $json.data === 'string' ? $json.data.substring(0, 15000) : JSON.stringify($json).substring(0, 15000) }}\n\n**AUFGABE:**\nSuche im HTML nach Produkten und Preisen. Agrieuro verkauft Garten- und Landmaschinen.\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Agrieuro\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklaerung\"\n}\n```\n\n**REGELN:**\n- Nur Preis fuer KOMPLETTE Motorsaege\n- Preis muss im Bereich 300-2500 Euro liegen\n- null wenn nicht gefunden"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-agrieuro",
+      "name": "AI Agrieuro",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 800],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "gpt-4o", "mode": "list", "cachedResultName": "GPT-4o" },
+        "messages": {
+          "values": [
+            {
+              "content": "=Du bist ein Preisextraktions-Experte. Analysiere den HTML-Code einer Shop-Suchergebnisseite.\n\n**GESUCHTES PRODUKT:**\n- Name: {{ $('Set Data').item.json.produktname }}\n- EAN: {{ $('Set Data').item.json.ean }}\n- Typ: MOTORSAEGE - keine Ersatzteile!\n\n**SHOP:** Simon-Profi-Technik.de\n\n**HTML DER SEITE (gekuerzt):**\n{{ typeof $json.data === 'string' ? $json.data.substring(0, 15000) : JSON.stringify($json).substring(0, 15000) }}\n\n**AUFGABE:**\nSuche im HTML nach Produkten und Preisen.\n\n**Antworte NUR mit JSON:**\n```json\n{\n  \"gefunden\": true/false,\n  \"produkt_match\": \"exakt\" | \"wahrscheinlich\" | \"nicht_gefunden\",\n  \"shop\": \"Simon-Profi\",\n  \"preis\": 899.99,\n  \"produkt_gefunden\": \"STIHL MS 261 C-M...\",\n  \"verfuegbar\": true,\n  \"notiz\": \"Erklaerung\"\n}\n```\n\n**REGELN:**\n- Nur Preis fuer KOMPLETTE Motorsaege\n- Preis muss im Bereich 300-2500 Euro liegen\n- null wenn nicht gefunden"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": { "temperature": 0.1 }
+      },
+      "id": "ai-simon",
+      "name": "AI Simon-Profi",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1600, 1000],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-all",
+      "name": "Merge All",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1880, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// AI-basierte Preisverarbeitung v8 (ScrapingBee)\n// ============================================\n\nconst items = $input.all();\nlet ean = '';\nlet produktname = '';\n\ntry {\n  const originalData = $('Set Data').first().json;\n  ean = originalData.ean || '';\n  produktname = originalData.produktname || '';\n} catch (e) {\n  console.log('Set Data nicht verfuegbar');\n}\n\nconst result = {\n  ean: ean,\n  produktname: produktname,\n  timestamp: new Date().toLocaleString('de-DE'),\n  shopPrices: {},\n  cheapestShop: null,\n  cheapestPrice: null,\n  totalShopsFound: 0,\n  ignoredItems: []\n};\n\n// Minimaler Preis fuer Motorsaegen (filtert Zubehoer)\nconst MIN_PRICE = 200;\nconst MAX_PRICE = 5000;\n\n// Verarbeite AI-Ergebnisse\nfor (const item of items) {\n  const data = item.json;\n  \n  if (!data || data.gefunden === false || data.error) {\n    continue;\n  }\n  \n  // Preispiraten hat mehrere Preise\n  if (data.preise && Array.isArray(data.preise)) {\n    for (const p of data.preise) {\n      if (!p.preis || p.preis < MIN_PRICE || p.preis > MAX_PRICE) {\n        if (p.preis) result.ignoredItems.push(`${p.shop}: ${p.preis} Euro (zu niedrig)`);\n        continue;\n      }\n      \n      if (p.shop && p.verfuegbar !== false) {\n        const shopKey = p.shop.toLowerCase().replace(/[^a-z]/g, '');\n        if (!result.shopPrices[shopKey] || p.preis < result.shopPrices[shopKey].price) {\n          result.shopPrices[shopKey] = {\n            name: p.shop,\n            price: p.preis,\n            produkt: p.produkt || ''\n          };\n        }\n      }\n    }\n  }\n  \n  // Ignorierte Items aus Preispiraten\n  if (data.ignoriert && Array.isArray(data.ignoriert)) {\n    result.ignoredItems = result.ignoredItems.concat(data.ignoriert);\n  }\n  \n  // Einzelne Shop-Ergebnisse (von ScrapingBee)\n  if (data.shop && data.preis && data.gefunden && data.verfuegbar !== false) {\n    if (data.preis < MIN_PRICE || data.preis > MAX_PRICE) {\n      result.ignoredItems.push(`${data.shop}: ${data.preis} Euro (ausserhalb Bereich)`);\n      continue;\n    }\n    \n    const shopKey = data.shop.toLowerCase().replace(/[^a-z]/g, '');\n    if (!result.shopPrices[shopKey] || data.preis < result.shopPrices[shopKey].price) {\n      result.shopPrices[shopKey] = {\n        name: data.shop,\n        price: data.preis,\n        produkt: data.produkt_gefunden || ''\n      };\n    }\n  }\n}\n\n// Finde guenstigsten\nlet cheapestPrice = Infinity;\nfor (const key of Object.keys(result.shopPrices)) {\n  const shop = result.shopPrices[key];\n  if (shop.price < cheapestPrice) {\n    cheapestPrice = shop.price;\n    result.cheapestShop = shop.name;\n    result.cheapestPrice = shop.price;\n  }\n}\n\nresult.totalShopsFound = Object.keys(result.shopPrices).length;\n\nif (result.totalShopsFound === 0) {\n  result.warning = 'Keine Preise fuer Motorsaege gefunden';\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "process-ai-results",
+      "name": "Process AI Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $input.first().json;\n\nif (!p.ean) {\n  return [];\n}\n\nconst today = new Date().toLocaleDateString('de-DE');\nconst formatPrice = (price) => price ? price.toFixed(2).replace('.', ',') : '';\nconst getPrice = (key) => formatPrice(p.shopPrices?.[key]?.price);\n\nconst output = {\n  Datum: today,\n  EAN: p.ean,\n  Produktname: p.produktname || '',\n  Lohmeier: getPrice('lohmeier'),\n  Motorland: getPrice('motorland'),\n  Agrieuro: getPrice('agrieuro'),\n  Simon: getPrice('simonprofi') || getPrice('simon'),\n  Otto: getPrice('otto'),\n  Amazon: getPrice('amazon'),\n  eBay: getPrice('ebay'),\n  Kaufland: getPrice('kaufland'),\n  Idealo: getPrice('idealo'),\n  Galaxus: getPrice('galaxus'),\n  Conrad: getPrice('conrad'),\n  ManoMano: getPrice('manomano'),\n  Guenstigster_Shop: p.cheapestShop || '',\n  Guenstigster_Preis: formatPrice(p.cheapestPrice),\n  Anzahl_Shops: p.totalShopsFound,\n  Hinweis: p.warning || ''\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "prepare-sheet",
+      "name": "Prepare Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2320, 600]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk",
+          "mode": "list",
+          "cachedResultName": "Preisvergleich EAN Tabelle",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2060674137,
+          "mode": "list",
+          "cachedResultName": "Preisvergleich1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1XjSI5pmrXXe3OQvzgBVU7pYp3Ggyl-mBVbMIgpKa9bk/edit#gid=2060674137"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["EAN"],
+          "schema": [
+            { "id": "EAN", "displayName": "EAN", "required": false, "defaultMatch": true, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "save-sheet",
+      "name": "Save to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2540, 600],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gw0DIdDENFkpE7ZW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5
+      },
+      "id": "wait",
+      "name": "Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2760, 400],
+      "webhookId": "price-tracker-wait-v8"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "EANs laden", "type": "main", "index": 0 }]]
+    },
+    "Schedule": {
+      "main": [[{ "node": "EANs laden", "type": "main", "index": 0 }]]
+    },
+    "EANs laden": {
+      "main": [[{ "node": "Filter", "type": "main", "index": 0 }]]
+    },
+    "Filter": {
+      "main": [[{ "node": "Loop", "type": "main", "index": 0 }]]
+    },
+    "Loop": {
+      "main": [
+        [{ "node": "Wait 5s", "type": "main", "index": 0 }],
+        [{ "node": "Set Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Data": {
+      "main": [[
+        { "node": "Preispiraten (Apify)", "type": "main", "index": 0 },
+        { "node": "Lohmeier (ScrapingBee)", "type": "main", "index": 0 },
+        { "node": "Motorland (ScrapingBee)", "type": "main", "index": 0 },
+        { "node": "Agrieuro (ScrapingBee)", "type": "main", "index": 0 },
+        { "node": "Simon-Profi (ScrapingBee)", "type": "main", "index": 0 }
+      ]]
+    },
+    "Preispiraten (Apify)": {
+      "main": [[{ "node": "AI Preispiraten", "type": "main", "index": 0 }]]
+    },
+    "Lohmeier (ScrapingBee)": {
+      "main": [[{ "node": "AI Lohmeier", "type": "main", "index": 0 }]]
+    },
+    "Motorland (ScrapingBee)": {
+      "main": [[{ "node": "AI Motorland", "type": "main", "index": 0 }]]
+    },
+    "Agrieuro (ScrapingBee)": {
+      "main": [[{ "node": "AI Agrieuro", "type": "main", "index": 0 }]]
+    },
+    "Simon-Profi (ScrapingBee)": {
+      "main": [[{ "node": "AI Simon-Profi", "type": "main", "index": 0 }]]
+    },
+    "AI Preispiraten": {
+      "main": [[{ "node": "Merge All", "type": "main", "index": 0 }]]
+    },
+    "AI Lohmeier": {
+      "main": [[{ "node": "Merge All", "type": "main", "index": 0 }]]
+    },
+    "AI Motorland": {
+      "main": [[{ "node": "Merge All", "type": "main", "index": 0 }]]
+    },
+    "AI Agrieuro": {
+      "main": [[{ "node": "Merge All", "type": "main", "index": 0 }]]
+    },
+    "AI Simon-Profi": {
+      "main": [[{ "node": "Merge All", "type": "main", "index": 0 }]]
+    },
+    "Merge All": {
+      "main": [[{ "node": "Process AI Results", "type": "main", "index": 0 }]]
+    },
+    "Process AI Results": {
+      "main": [[{ "node": "Prepare Sheet", "type": "main", "index": 0 }]]
+    },
+    "Prepare Sheet": {
+      "main": [[{ "node": "Save to Sheet", "type": "main", "index": 0 }]]
+    },
+    "Save to Sheet": {
+      "main": [[{ "node": "Loop", "type": "main", "index": 0 }]]
+    },
+    "Wait 5s": {
+      "main": [[]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
