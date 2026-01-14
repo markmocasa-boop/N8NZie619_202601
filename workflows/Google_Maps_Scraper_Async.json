@@ -1,0 +1,322 @@
+{
+  "name": "Google Maps Scraper - Async (100+ Results)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Google Maps Scraper - Async Version\n\n**Warum async?**\nDer synchrone Endpoint `/run-sync` hat ein Timeout und liefert nur ~20 Ergebnisse.\n\n**Dieser Workflow:**\n1. Startet den Actor\n2. Wartet auf Completion (Polling)\n3. Holt ALLE Ergebnisse\n\n⏱️ Dauert länger, aber liefert 100+ Ergebnisse",
+        "height": 260,
+        "width": 320,
+        "color": 6
+      },
+      "id": "info-note",
+      "name": "📋 Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "formTitle": "Google Maps Suche",
+        "formDescription": "Suche nach Unternehmen auf Google Maps",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Search query",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "z.B. Steuerberater in Berlin, Deutschland"
+            },
+            {
+              "fieldLabel": "Number of places to extract",
+              "fieldType": "number",
+              "requiredField": true,
+              "placeholder": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "form-trigger",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [340, 300],
+      "webhookId": "google-maps-async-form"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"includeWebResults\": false,\n  \"language\": \"de\",\n  \"leadsEnrichmentDepartments\": [\n    \"c_suite\",\n    \"consulting\",\n    \"sales\",\n    \"operations\",\n    \"medical_health\",\n    \"marketing\",\n    \"information_technology\",\n    \"human_resources\",\n    \"finance\",\n    \"education\",\n    \"design\"\n  ],\n  \"maxCrawledPlacesPerSearch\": {{ $json['Number of places to extract'] }},\n  \"maxImages\": 0,\n  \"maximumLeadsEnrichmentRecords\": 1,\n  \"scrapeContacts\": false,\n  \"scrapeDirectories\": false,\n  \"scrapeImageAuthors\": false,\n  \"scrapePlaceDetailPage\": true,\n  \"maxAutoscrolledPlaces\": {{ $json['Number of places to extract'] + 20 }},\n  \"scrapeReviewsPersonalData\": true,\n  \"scrapeTableReservationProvider\": false,\n  \"searchStringsArray\": [\n    \"{{ $json['Search query'] }}\"\n  ],\n  \"skipClosedPlaces\": false\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "start-actor",
+      "name": "1️⃣ Start Actor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [580, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Apify API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Startet den Scraper async"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "runId",
+              "name": "runId",
+              "value": "={{ $json.data.id }}",
+              "type": "string"
+            },
+            {
+              "id": "datasetId",
+              "name": "datasetId",
+              "value": "={{ $json.data.defaultDatasetId }}",
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "name": "status",
+              "value": "={{ $json.data.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-ids",
+      "name": "📝 Extract IDs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "amount": 15,
+        "unit": "seconds"
+      },
+      "id": "wait-15s",
+      "name": "⏳ Wait 15s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1020, 300],
+      "webhookId": "wait-for-actor"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.apify.com/v2/actor-runs/{{ $json.runId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "check-status",
+      "name": "2️⃣ Check Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1240, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Apify API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Prüft ob Actor fertig ist"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "status-check",
+              "leftValue": "={{ $json.data.status }}",
+              "rightValue": "SUCCEEDED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-finished",
+      "name": "🔀 Finished?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1460, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "runId",
+              "name": "runId",
+              "value": "={{ $json.data.id }}",
+              "type": "string"
+            },
+            {
+              "id": "datasetId",
+              "name": "datasetId",
+              "value": "={{ $json.data.defaultDatasetId }}",
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "name": "status",
+              "value": "={{ $json.data.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "keep-ids",
+      "name": "📝 Keep IDs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1680, 440]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.apify.com/v2/datasets/{{ $json.data.defaultDatasetId }}/items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "clean",
+              "value": "true"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "get-results",
+      "name": "3️⃣ Get Results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Apify API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Holt ALLE Ergebnisse"
+    },
+    {
+      "parameters": {
+        "content": "## ⚠️ Wichtig: Credentials anpassen!\n\nNach dem Import:\n1. Klicke auf jeden HTTP Request Node\n2. Wähle deine \"Apify API\" Credentials\n\nDie Credentials sollten den Header enthalten:\n`Authorization: Bearer apify_api_xxx`",
+        "height": 180,
+        "width": 320,
+        "color": 5
+      },
+      "id": "warning-note",
+      "name": "⚠️ Credentials",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "content": "## 🔄 Polling Loop\n\nDer Workflow wartet 15 Sekunden und prüft dann den Status.\n\nWenn nicht fertig → zurück zu Wait\nWenn fertig → Ergebnisse abrufen\n\nTypische Wartezeit für 100 Places: 2-5 Minuten",
+        "height": 160,
+        "width": 280,
+        "color": 4
+      },
+      "id": "loop-note",
+      "name": "🔄 Loop Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1020, 100]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"totalResults\": {{ $input.all().length }},\n  \"message\": \"Scraping erfolgreich abgeschlossen!\",\n  \"places\": {{ JSON.stringify($input.all().map(item => item.json)) }}\n}",
+        "options": {}
+      },
+      "id": "format-output",
+      "name": "📊 Format Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1900, 160]
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [[{ "node": "1️⃣ Start Actor", "type": "main", "index": 0 }]]
+    },
+    "1️⃣ Start Actor": {
+      "main": [[{ "node": "📝 Extract IDs", "type": "main", "index": 0 }]]
+    },
+    "📝 Extract IDs": {
+      "main": [[{ "node": "⏳ Wait 15s", "type": "main", "index": 0 }]]
+    },
+    "⏳ Wait 15s": {
+      "main": [[{ "node": "2️⃣ Check Status", "type": "main", "index": 0 }]]
+    },
+    "2️⃣ Check Status": {
+      "main": [[{ "node": "🔀 Finished?", "type": "main", "index": 0 }]]
+    },
+    "🔀 Finished?": {
+      "main": [
+        [{ "node": "3️⃣ Get Results", "type": "main", "index": 0 }],
+        [{ "node": "📝 Keep IDs", "type": "main", "index": 0 }]
+      ]
+    },
+    "📝 Keep IDs": {
+      "main": [[{ "node": "⏳ Wait 15s", "type": "main", "index": 0 }]]
+    },
+    "3️⃣ Get Results": {
+      "main": [[{ "node": "📊 Format Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "google-maps-async-workflow"
+  }
+}
