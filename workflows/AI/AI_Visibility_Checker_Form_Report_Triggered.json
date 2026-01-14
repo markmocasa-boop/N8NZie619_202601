@@ -1,0 +1,738 @@
+{
+  "meta": {
+    "instanceId": "workflow-ai-visibility-001",
+    "versionId": "1.0.0",
+    "createdAt": "2026-01-14T10:00:00.000000",
+    "updatedAt": "2026-01-14T10:00:00.000000",
+    "owner": "n8n-user",
+    "license": "MIT",
+    "category": "ai-analysis",
+    "status": "active",
+    "priority": "high",
+    "environment": "production"
+  },
+  "name": "AI Visibility Checker - Multi-Platform Source Analysis",
+  "description": "Prüft KI-Sichtbarkeit bei ChatGPT, Gemini, Claude und Perplexity. Sendet einen HTML-Report mit Quellenangaben pro Plattform per Gmail.",
+  "nodes": [
+    {
+      "id": "form-trigger-001",
+      "name": "Prompt Eingabe Formular",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [0, 300],
+      "webhookId": "ai-visibility-form-webhook",
+      "parameters": {
+        "formTitle": "AI Visibility Checker",
+        "formDescription": "Geben Sie einen Prompt ein, der bei allen KI-Plattformen geprüft wird. Die Quellenangaben werden als Report per E-Mail gesendet.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "prompt",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "z.B. Was sind die besten SEO-Strategien für 2026?"
+            },
+            {
+              "fieldLabel": "email",
+              "fieldType": "email",
+              "requiredField": true,
+              "placeholder": "ihre@email.de"
+            },
+            {
+              "fieldLabel": "marke_oder_thema",
+              "fieldType": "text",
+              "requiredField": false,
+              "placeholder": "Optional: Marke/Thema für Sichtbarkeitsanalyse"
+            }
+          ]
+        },
+        "options": {
+          "respondWithData": false
+        }
+      },
+      "typeVersion": 2.2,
+      "notes": "Formular zur Eingabe des Prompts und der E-Mail-Adresse für den Report."
+    },
+    {
+      "id": "prepare-prompt-001",
+      "name": "Prompt mit Quellenanforderung vorbereiten",
+      "type": "n8n-nodes-base.set",
+      "position": [250, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "original-prompt",
+              "name": "originalPrompt",
+              "value": "={{ $json.prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "name": "recipientEmail",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "marke",
+              "name": "markeThema",
+              "value": "={{ $json.marke_oder_thema || 'Allgemein' }}",
+              "type": "string"
+            },
+            {
+              "id": "enhanced-prompt",
+              "name": "enhancedPrompt",
+              "value": "={{ $json.prompt }}\n\n---\nWICHTIG: Bitte gib zu deiner Antwort alle relevanten Quellen an. Formatiere die Quellen als nummerierte Liste mit:\n- Titel der Quelle\n- URL (wenn verfügbar)\n- Kurze Beschreibung warum diese Quelle relevant ist\n\nWenn du keine spezifischen URLs hast, gib an welche Art von Quellen du verwendet hast (z.B. wissenschaftliche Studien, Nachrichtenportale, offizielle Dokumentationen).",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now.format('dd.MM.yyyy HH:mm') }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4,
+      "notes": "Erweitert den Original-Prompt um eine Quellenanforderung."
+    },
+    {
+      "id": "chatgpt-api-001",
+      "name": "ChatGPT 5.2 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 100],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.2\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Du bist ein hilfreicher Assistent. Gib immer Quellenangaben zu deinen Antworten an.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.enhancedPrompt) }}\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 2000\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 4.2,
+      "notes": "Sendet den Prompt an ChatGPT 5.2 API.",
+      "onError": "continueRegularOutput",
+      "continueOnFail": true
+    },
+    {
+      "id": "gemini-api-001",
+      "name": "Gemini 3.0 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 250],
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-pro:generateContent?key={{ $credentials.googleAiApi.apiKey }}",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": {{ JSON.stringify($json.enhancedPrompt) }}\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 2000\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleAiApi": {
+          "id": "YOUR_GOOGLE_AI_CREDENTIAL_ID",
+          "name": "Google AI API"
+        }
+      },
+      "typeVersion": 4.2,
+      "notes": "Sendet den Prompt an Google Gemini 3.0 API.",
+      "onError": "continueRegularOutput",
+      "continueOnFail": true
+    },
+    {
+      "id": "claude-api-001",
+      "name": "Claude Sonnet 4.5 API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 400],
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "={{ $credentials.anthropicApi.apiKey }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5-20250514\",\n  \"max_tokens\": 2000,\n  \"system\": \"Du bist ein hilfreicher Assistent. Gib immer Quellenangaben zu deinen Antworten an.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.enhancedPrompt) }}\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic API"
+        }
+      },
+      "typeVersion": 4.2,
+      "notes": "Sendet den Prompt an Claude Sonnet 4.5 API.",
+      "onError": "continueRegularOutput",
+      "continueOnFail": true
+    },
+    {
+      "id": "perplexity-api-001",
+      "name": "Perplexity API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [500, 550],
+      "parameters": {
+        "url": "https://api.perplexity.ai/chat/completions",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "perplexityApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.perplexityApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-sonar-large-128k-online\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Du bist ein hilfreicher Assistent mit Zugang zu aktuellen Web-Informationen. Gib immer detaillierte Quellenangaben mit URLs zu deinen Antworten an.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.enhancedPrompt) }}\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 2000,\n  \"return_citations\": true,\n  \"return_related_questions\": true\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "perplexityApi": {
+          "id": "YOUR_PERPLEXITY_CREDENTIAL_ID",
+          "name": "Perplexity API"
+        }
+      },
+      "typeVersion": 4.2,
+      "notes": "Sendet den Prompt an Perplexity API - liefert echte Web-Quellen.",
+      "onError": "continueRegularOutput",
+      "continueOnFail": true
+    },
+    {
+      "id": "merge-results-001",
+      "name": "Ergebnisse zusammenführen",
+      "type": "n8n-nodes-base.merge",
+      "position": [750, 300],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "typeVersion": 3,
+      "notes": "Führt alle API-Antworten zusammen."
+    },
+    {
+      "id": "process-results-001",
+      "name": "Antworten verarbeiten",
+      "type": "n8n-nodes-base.code",
+      "position": [950, 300],
+      "parameters": {
+        "jsCode": "// Sammle alle Eingaben\nconst items = $input.all();\nconst firstItem = items[0]?.json || {};\n\n// Original-Daten vom Formular\nconst originalPrompt = firstItem.originalPrompt || 'Kein Prompt';\nconst recipientEmail = firstItem.recipientEmail || '';\nconst markeThema = firstItem.markeThema || 'Allgemein';\nconst timestamp = firstItem.timestamp || new Date().toLocaleString('de-DE');\n\n// Hilfsfunktion zum Extrahieren der Antwort\nfunction extractResponse(data, platform) {\n  try {\n    if (!data || data.error) {\n      return {\n        success: false,\n        content: 'API-Fehler: ' + (data?.error?.message || 'Keine Antwort erhalten'),\n        sources: []\n      };\n    }\n    \n    let content = '';\n    let sources = [];\n    \n    switch(platform) {\n      case 'ChatGPT':\n        content = data.choices?.[0]?.message?.content || 'Keine Antwort';\n        break;\n      case 'Gemini':\n        content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Keine Antwort';\n        break;\n      case 'Claude':\n        content = data.content?.[0]?.text || 'Keine Antwort';\n        break;\n      case 'Perplexity':\n        content = data.choices?.[0]?.message?.content || 'Keine Antwort';\n        // Perplexity liefert echte Citations\n        if (data.citations && Array.isArray(data.citations)) {\n          sources = data.citations.map((url, idx) => ({\n            nummer: idx + 1,\n            url: url,\n            titel: `Quelle ${idx + 1}`\n          }));\n        }\n        break;\n    }\n    \n    return {\n      success: true,\n      content: content,\n      sources: sources\n    };\n  } catch (e) {\n    return {\n      success: false,\n      content: 'Verarbeitungsfehler: ' + e.message,\n      sources: []\n    };\n  }\n}\n\n// Verarbeite jede Plattform\nconst results = {\n  originalPrompt,\n  recipientEmail,\n  markeThema,\n  timestamp,\n  platforms: {\n    chatgpt: extractResponse(items.find(i => i.json?.chatgptResponse)?.json?.chatgptResponse, 'ChatGPT'),\n    gemini: extractResponse(items.find(i => i.json?.geminiResponse)?.json?.geminiResponse, 'Gemini'),\n    claude: extractResponse(items.find(i => i.json?.claudeResponse)?.json?.claudeResponse, 'Claude'),\n    perplexity: extractResponse(items.find(i => i.json?.perplexityResponse)?.json?.perplexityResponse, 'Perplexity')\n  }\n};\n\nreturn { json: results };"
+      },
+      "typeVersion": 2,
+      "notes": "Verarbeitet und strukturiert die API-Antworten."
+    },
+    {
+      "id": "chatgpt-set-001",
+      "name": "ChatGPT Ergebnis setzen",
+      "type": "n8n-nodes-base.set",
+      "position": [650, 100],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chatgpt-response",
+              "name": "chatgptResponse",
+              "value": "={{ $json }}",
+              "type": "object"
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "value": "ChatGPT 5.2",
+              "type": "string"
+            },
+            {
+              "id": "pass-original",
+              "name": "originalPrompt",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.originalPrompt }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-email",
+              "name": "recipientEmail",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.recipientEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-marke",
+              "name": "markeThema",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.markeThema }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-timestamp",
+              "name": "timestamp",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.timestamp }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4,
+      "notes": "Strukturiert die ChatGPT-Antwort."
+    },
+    {
+      "id": "gemini-set-001",
+      "name": "Gemini Ergebnis setzen",
+      "type": "n8n-nodes-base.set",
+      "position": [650, 250],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "gemini-response",
+              "name": "geminiResponse",
+              "value": "={{ $json }}",
+              "type": "object"
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "value": "Gemini 3.0",
+              "type": "string"
+            },
+            {
+              "id": "pass-original",
+              "name": "originalPrompt",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.originalPrompt }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-email",
+              "name": "recipientEmail",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.recipientEmail }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4,
+      "notes": "Strukturiert die Gemini-Antwort."
+    },
+    {
+      "id": "claude-set-001",
+      "name": "Claude Ergebnis setzen",
+      "type": "n8n-nodes-base.set",
+      "position": [650, 400],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "claude-response",
+              "name": "claudeResponse",
+              "value": "={{ $json }}",
+              "type": "object"
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "value": "Claude Sonnet 4.5",
+              "type": "string"
+            },
+            {
+              "id": "pass-original",
+              "name": "originalPrompt",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.originalPrompt }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-email",
+              "name": "recipientEmail",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.recipientEmail }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4,
+      "notes": "Strukturiert die Claude-Antwort."
+    },
+    {
+      "id": "perplexity-set-001",
+      "name": "Perplexity Ergebnis setzen",
+      "type": "n8n-nodes-base.set",
+      "position": [650, 550],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "perplexity-response",
+              "name": "perplexityResponse",
+              "value": "={{ $json }}",
+              "type": "object"
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "value": "Perplexity",
+              "type": "string"
+            },
+            {
+              "id": "pass-original",
+              "name": "originalPrompt",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.originalPrompt }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-email",
+              "name": "recipientEmail",
+              "value": "={{ $('Prompt mit Quellenanforderung vorbereiten').item.json.recipientEmail }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4,
+      "notes": "Strukturiert die Perplexity-Antwort mit echten Web-Quellen."
+    },
+    {
+      "id": "generate-html-report-001",
+      "name": "HTML Report generieren",
+      "type": "n8n-nodes-base.code",
+      "position": [1150, 300],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Hilfsfunktion für Markdown zu HTML (einfach)\nfunction mdToHtml(text) {\n  if (!text) return '';\n  return text\n    .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')\n    .replace(/\\*(.*?)\\*/g, '<em>$1</em>')\n    .replace(/`(.*?)`/g, '<code>$1</code>')\n    .replace(/\\n/g, '<br>');\n}\n\n// Extrahiere Quellen aus dem Text\nfunction extractSourcesFromText(text) {\n  const sources = [];\n  // URL Pattern\n  const urlPattern = /https?:\\/\\/[^\\s<>\"']+/g;\n  const urls = text.match(urlPattern) || [];\n  urls.forEach((url, idx) => {\n    sources.push({\n      nummer: idx + 1,\n      url: url,\n      titel: new URL(url).hostname\n    });\n  });\n  return sources;\n}\n\n// Generiere Tabelle für eine Plattform\nfunction generatePlatformSection(name, result, color) {\n  const statusIcon = result.success ? '✅' : '❌';\n  const sources = result.sources.length > 0 ? result.sources : extractSourcesFromText(result.content);\n  \n  let sourcesHtml = '';\n  if (sources.length > 0) {\n    sourcesHtml = `\n      <table style=\"width: 100%; border-collapse: collapse; margin-top: 10px;\">\n        <thead>\n          <tr style=\"background-color: #f8f9fa;\">\n            <th style=\"padding: 8px; border: 1px solid #dee2e6; text-align: left;\">#</th>\n            <th style=\"padding: 8px; border: 1px solid #dee2e6; text-align: left;\">Quelle</th>\n            <th style=\"padding: 8px; border: 1px solid #dee2e6; text-align: left;\">URL</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${sources.map(s => `\n            <tr>\n              <td style=\"padding: 8px; border: 1px solid #dee2e6;\">${s.nummer}</td>\n              <td style=\"padding: 8px; border: 1px solid #dee2e6;\">${s.titel || 'Quelle ' + s.nummer}</td>\n              <td style=\"padding: 8px; border: 1px solid #dee2e6;\"><a href=\"${s.url}\" target=\"_blank\">${s.url}</a></td>\n            </tr>\n          `).join('')}\n        </tbody>\n      </table>\n    `;\n  } else {\n    sourcesHtml = '<p style=\"color: #6c757d; font-style: italic;\">Keine expliziten Quellen-URLs in der Antwort gefunden.</p>';\n  }\n  \n  return `\n    <div style=\"margin-bottom: 30px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;\">\n      <div style=\"background-color: ${color}; color: white; padding: 15px;\">\n        <h2 style=\"margin: 0;\">${statusIcon} ${name}</h2>\n      </div>\n      <div style=\"padding: 20px;\">\n        <h3 style=\"color: #495057;\">Antwort:</h3>\n        <div style=\"background-color: #f8f9fa; padding: 15px; border-radius: 4px; max-height: 300px; overflow-y: auto;\">\n          ${mdToHtml(result.content)}\n        </div>\n        <h3 style=\"color: #495057; margin-top: 20px;\">Quellenangaben:</h3>\n        ${sourcesHtml}\n      </div>\n    </div>\n  `;\n}\n\n// HTML Report zusammenbauen\nconst htmlReport = `\n<!DOCTYPE html>\n<html lang=\"de\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>AI Visibility Report</title>\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #ffffff;\">\n  \n  <div style=\"text-align: center; margin-bottom: 30px; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;\">\n    <h1 style=\"margin: 0 0 10px 0;\">🔍 AI Visibility Report</h1>\n    <p style=\"margin: 0; opacity: 0.9;\">Multi-Plattform Quellenanalyse</p>\n  </div>\n  \n  <div style=\"background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #0066cc;\">\n    <h3 style=\"margin: 0 0 10px 0; color: #0066cc;\">📋 Analyse-Details</h3>\n    <table style=\"width: 100%;\">\n      <tr>\n        <td style=\"padding: 5px 0;\"><strong>Zeitpunkt:</strong></td>\n        <td>${data.timestamp}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 5px 0;\"><strong>Thema/Marke:</strong></td>\n        <td>${data.markeThema}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 5px 0;\"><strong>Prompt:</strong></td>\n        <td style=\"font-style: italic;\">${data.originalPrompt}</td>\n      </tr>\n    </table>\n  </div>\n  \n  <h2 style=\"color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px;\">Ergebnisse nach Plattform</h2>\n  \n  ${generatePlatformSection('ChatGPT 5.2', data.platforms.chatgpt, '#10a37f')}\n  ${generatePlatformSection('Google Gemini 3.0', data.platforms.gemini, '#4285f4')}\n  ${generatePlatformSection('Claude Sonnet 4.5', data.platforms.claude, '#d97706')}\n  ${generatePlatformSection('Perplexity', data.platforms.perplexity, '#20b2aa')}\n  \n  <div style=\"margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; text-align: center;\">\n    <h3 style=\"color: #495057;\">📊 Zusammenfassung</h3>\n    <p>Dieser Report wurde automatisch generiert, um die Sichtbarkeit und Quellenangaben verschiedener KI-Plattformen zu vergleichen.</p>\n    <p style=\"color: #6c757d; font-size: 12px;\">Generiert mit n8n AI Visibility Checker</p>\n  </div>\n  \n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    htmlReport,\n    recipientEmail: data.recipientEmail,\n    subject: `AI Visibility Report: ${data.markeThema} - ${data.timestamp}`,\n    originalPrompt: data.originalPrompt\n  }\n};"
+      },
+      "typeVersion": 2,
+      "notes": "Generiert einen formatierten HTML-Report mit Tabellen für jede Plattform."
+    },
+    {
+      "id": "gmail-send-001",
+      "name": "Report per Gmail senden",
+      "type": "n8n-nodes-base.gmail",
+      "position": [1350, 300],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.recipientEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlReport }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail Account"
+        }
+      },
+      "typeVersion": 2.1,
+      "notes": "Sendet den HTML-Report per Gmail an die angegebene E-Mail-Adresse."
+    },
+    {
+      "id": "sticky-note-info-001",
+      "name": "Workflow Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-200, 50],
+      "parameters": {
+        "color": 6,
+        "width": 350,
+        "height": 200,
+        "content": "# 🔍 AI Visibility Checker\n\n**Zweck:** Prüft KI-Sichtbarkeit bei mehreren Plattformen und sammelt Quellenangaben.\n\n**Plattformen:**\n- ChatGPT 5.2\n- Google Gemini 3.0\n- Claude Sonnet 4.5\n- Perplexity (mit echten Web-Quellen)\n\n**Output:** HTML-Report per Gmail"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-note-credentials-001",
+      "name": "Credentials Hinweis",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [450, -100],
+      "parameters": {
+        "color": 3,
+        "width": 400,
+        "height": 150,
+        "content": "# ⚠️ Credentials einrichten\n\nBitte folgende API-Credentials in n8n konfigurieren:\n1. **OpenAI API** - für ChatGPT\n2. **Google AI API** - für Gemini\n3. **Anthropic API** - für Claude\n4. **Perplexity API** - für Perplexity\n5. **Gmail OAuth2** - für E-Mail-Versand"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "sticky-note-perplexity-001",
+      "name": "Perplexity Hinweis",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [450, 650],
+      "parameters": {
+        "color": 5,
+        "width": 300,
+        "height": 100,
+        "content": "# 💡 Perplexity\n\nPerplexity ist die einzige Plattform, die **native Web-Suche** mit echten URLs als Quellen liefert!"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "form-trigger-001": {
+      "main": [
+        [
+          {
+            "node": "prepare-prompt-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-prompt-001": {
+      "main": [
+        [
+          {
+            "node": "chatgpt-api-001",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "gemini-api-001",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "claude-api-001",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "perplexity-api-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "chatgpt-api-001": {
+      "main": [
+        [
+          {
+            "node": "chatgpt-set-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini-api-001": {
+      "main": [
+        [
+          {
+            "node": "gemini-set-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-api-001": {
+      "main": [
+        [
+          {
+            "node": "claude-set-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "perplexity-api-001": {
+      "main": [
+        [
+          {
+            "node": "perplexity-set-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "chatgpt-set-001": {
+      "main": [
+        [
+          {
+            "node": "merge-results-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini-set-001": {
+      "main": [
+        [
+          {
+            "node": "merge-results-001",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "claude-set-001": {
+      "main": [
+        [
+          {
+            "node": "merge-results-001",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "perplexity-set-001": {
+      "main": [
+        [
+          {
+            "node": "merge-results-001",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "merge-results-001": {
+      "main": [
+        [
+          {
+            "node": "process-results-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-results-001": {
+      "main": [
+        [
+          {
+            "node": "generate-html-report-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-html-report-001": {
+      "main": [
+        [
+          {
+            "node": "gmail-send-001",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": null,
+    "timezone": "Europe/Berlin",
+    "executionTimeout": 300,
+    "maxExecutions": 100,
+    "retryOnFail": true,
+    "retryCount": 2,
+    "retryDelay": 5000
+  },
+  "tags": [
+    "ai-visibility",
+    "multi-platform",
+    "source-analysis",
+    "report-generation",
+    "gmail",
+    "chatgpt",
+    "gemini",
+    "claude",
+    "perplexity"
+  ],
+  "pinData": {},
+  "notes": "AI Visibility Checker Workflow - Prüft einen Prompt bei ChatGPT 5.2, Gemini 3.0, Claude Sonnet 4.5 und Perplexity, sammelt Quellenangaben und sendet einen formatierten HTML-Report per Gmail."
+}
