@@ -1,0 +1,955 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Video-Metadaten aus beiden Quellen extrahieren\nconst youtubeInfo = $('YouTube Video Info abrufen').first().json;\nconst transcript = $('Supadata.ai Transkript').first().json;\nconst formData = $('On form submission').first().json;\n\n// Video ID aus URL extrahieren\nconst url = formData['YT Url'] || '';\nconst videoIdMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);\nconst videoId = videoIdMatch ? videoIdMatch[1] : '';\n\nreturn [{\n  json: {\n    video_id: videoId,\n    title: youtubeInfo.title || '',\n    channel: youtubeInfo.author_name || '',\n    thumbnail: youtubeInfo.thumbnail_url || '',\n    video_url: formData['YT Url'] || '',\n    download_url: `https://www.youtube.com/watch?v=${videoId}`,\n    transcript: transcript.content || '',\n    language: transcript.lang || 'en',\n    avatar_position: formData.avatar_position || 'bottom-right',\n    avatar_size: formData.avatar_size || 150\n  }\n}];\n"
+      },
+      "id": "60af78c1-f130-4e97-8fa3-bd92705adaa6",
+      "name": "2. Metadaten extrahieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://loader.to/api/button/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.download_url }}\",\n  \"format\": \"1080\"\n}",
+        "options": {}
+      },
+      "id": "e278ffa4-a79c-4b69-a6b5-fbebc5e4db6c",
+      "name": "3a. Video Download starten",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://loader.to/api/button/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.download_url }}\",\n  \"format\": \"mp3\"\n}",
+        "options": {}
+      },
+      "id": "952fe36e-c395-4719-bf56-916cf1c26453",
+      "name": "3b. Audio Download starten",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "id": "edd8734a-2f88-462b-b065-604d30c7fda0",
+      "name": "Download abwarten (30s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1264,
+        208
+      ],
+      "webhookId": "wait-downloads-webhook"
+    },
+    {
+      "parameters": {
+        "url": "=https://loader.to/api/run/?hash={{ $('3a. Video Download starten').item.json.content.hash }}",
+        "options": {}
+      },
+      "id": "acb8007c-88e9-4523-be84-aaff08c7af5c",
+      "name": "4a. Video Status prüfen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1504,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://loader.to/api/run/?hash={{ $('3b. Audio Download starten').item.json.content.hash }}",
+        "options": {}
+      },
+      "id": "5db75961-6564-40c5-9c20-4747c6fbdc2c",
+      "name": "4b. Audio Status prüfen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1504,
+        304
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "dad14124-26f4-4eaf-ac6b-a407be7a8c3c",
+      "name": "Downloads zusammenführen",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1744,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const videoStatus = $('4a. Video Status prüfen').first().json;\nconst audioStatus = $('4b. Audio Status prüfen').first().json;\nconst metadata = $('2. Metadaten extrahieren').first().json;\n\nreturn [{\n  json: {\n    ...metadata,\n    video_download_url: videoStatus.content?.download_url || videoStatus.download_url,\n    audio_download_url: audioStatus.content?.download_url || audioStatus.download_url,\n    video_ready: videoStatus.progress === 100 || videoStatus.content?.progress === 100,\n    audio_ready: audioStatus.progress === 100 || audioStatus.content?.progress === 100\n  }\n}];"
+      },
+      "id": "f6a75f79-2001-47a6-bcab-dc8d49f9d754",
+      "name": "5. Download URLs kombinieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.audio_download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "4c02adf0-58fa-462e-a2be-731daa5db577",
+      "name": "6. Audio herunterladen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2224,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "auto"
+        }
+      },
+      "id": "5188fb44-3b36-4070-ae90-a22a704777dc",
+      "name": "7. Audio transkribieren (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2464,
+        208
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transkription mit Timestamps aufbereiten\nconst transcription = $input.first().json;\n\n// Segmente für Synchronisation speichern\nconst segments = transcription.segments || [];\n\n// Vollständigen Text extrahieren\nconst fullText = transcription.text;\n\n// Sprache erkennen\nconst detectedLanguage = transcription.language || 'en';\n\nreturn [{\n  json: {\n    original_text: fullText,\n    segments: segments.map(s => ({\n      start: s.start,\n      end: s.end,\n      text: s.text\n    })),\n    detected_language: detectedLanguage,\n    word_count: fullText.split(' ').length,\n    duration: segments.length > 0 ? segments[segments.length - 1].end : 0\n  }\n}];"
+      },
+      "id": "544b498d-cd6b-46c3-9102-8b1709f88642",
+      "name": "8. Transkription aufbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Du bist ein professioneller Übersetzer, spezialisiert auf technische Inhalte und Tutorial-Videos.\n\nDeine Aufgabe:\n1. Übersetze den Text natürlich und flüssig ins Deutsche\n2. Behalte technische Begriffe (z.B. \"Workflow\", \"Node\", \"API\") im Original\n3. Passe den Ton an ein professionelles Tutorial an\n4. Achte auf korrekte Satzstruktur für Text-to-Speech\n5. Halte die Segmentierung bei, damit Audio synchron bleibt\n\nAntworte im JSON-Format mit:\n- translated_text: Der vollständige übersetzte Text\n- segments: Array mit übersetzten Segmenten (behalte start/end Zeiten bei)",
+              "role": "system"
+            },
+            {
+              "content": "=Übersetze folgendes Transkript ins Deutsche. Behalte die Segment-Struktur für die Audio-Synchronisation bei.\n\nOriginal-Sprache: {{ $json.detected_language }}\n\nTranskript:\n{{ $json.original_text }}\n\nSegmente mit Zeitstempeln:\n{{ JSON.stringify($json.segments, null, 2) }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "maxTokens": 4096,
+          "temperature": 0.3
+        }
+      },
+      "id": "08b94ee7-9355-48b5-b5f0-f5bad3fb64e7",
+      "name": "9. Ins Deutsche übersetzen",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2880,
+        208
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qqAEFbLOk7AgkiYS",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Übersetzung parsen\nconst translation = $input.first().json;\nlet parsed;\n\ntry {\n  // Falls als String\n  if (typeof translation.message?.content === 'string') {\n    parsed = JSON.parse(translation.message.content);\n  } else {\n    parsed = translation.message?.content || translation;\n  }\n} catch (e) {\n  // Fallback: Nur Text\n  parsed = {\n    translated_text: translation.message?.content || translation.text,\n    segments: []\n  };\n}\n\n// Vorherige Daten hinzufügen\nconst prevData = $('5. Download URLs kombinieren').first().json;\nconst transcriptionData = $('8. Transkription aufbereiten').first().json;\n\nreturn [{\n  json: {\n    ...prevData,\n    original_text: transcriptionData.original_text,\n    original_segments: transcriptionData.segments,\n    german_text: parsed.translated_text,\n    german_segments: parsed.segments || [],\n    duration: transcriptionData.duration\n  }\n}];"
+      },
+      "id": "bcee67fd-248a-4807-b2d1-0a59c4806c5d",
+      "name": "10. Übersetzung parsen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3184,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/speech",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"tts-1-hd\",\n  \"input\": \"{{ $json.german_text }}\",\n  \"voice\": \"onyx\",\n  \"response_format\": \"mp3\",\n  \"speed\": 1.0\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "e30f4087-393f-422a-a3da-e5c8923a3ff6",
+      "name": "11. Deutsches Audio generieren (TTS)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3424,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bt5i72SdfZhs7rjd",
+          "name": "OpenAI Header API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://catbox.moe/user/api.php",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "reqtype",
+              "value": "fileupload"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "fileToUpload",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f69fec6c-0140-4c39-8a85-3944464dba83",
+      "name": "12. Audio zu Catbox hochladen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3664,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('5. Download URLs kombinieren').first().json.video_download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "9cece6b5-9827-40bd-a0bf-80dd649a72ba",
+      "name": "13. Video herunterladen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3664,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/video/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "upload_preset",
+              "value": "n8n_upload"
+            },
+            {
+              "name": "public_id",
+              "value": "=youtube_translated_{{ $now.toMillis() }}"
+            },
+            {
+              "name": "resource_type",
+              "value": "video"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4df762e3-a88f-4377-b2a9-a91147e5a344",
+      "name": "14. Video zu Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3904,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Avatar-Entfernung über Cloudinary Transformation\n// HINWEIS: Dies funktioniert nur, wenn der Avatar an einer festen Position ist\n\nconst videoData = $('14. Video zu Cloudinary').first().json;\nconst metadata = $('5. Download URLs kombinieren').first().json;\n\n// Avatar-Position aus Input (Standard: bottom-right)\nconst avatarPos = metadata.avatar_position || 'bottom-right';\nconst avatarSize = metadata.avatar_size || 150;\n\n// Cloudinary Overlay-Transformation für Avatar-Abdeckung\n// Option 1: Blur-Overlay über Avatar-Bereich\n// Option 2: Crop um Avatar-Bereich zu entfernen\n\nlet transformation = '';\n\nswitch(avatarPos) {\n  case 'bottom-right':\n    // Overlay mit Blur am unteren rechten Rand\n    transformation = `e_blur_region:${avatarSize},g_south_east`;\n    break;\n  case 'bottom-left':\n    transformation = `e_blur_region:${avatarSize},g_south_west`;\n    break;\n  case 'top-right':\n    transformation = `e_blur_region:${avatarSize},g_north_east`;\n    break;\n  case 'top-left':\n    transformation = `e_blur_region:${avatarSize},g_north_west`;\n    break;\n  default:\n    // Kein Blur\n    transformation = '';\n}\n\n// Video URL mit Transformation\nconst baseUrl = videoData.secure_url.replace('/upload/', `/upload/${transformation}/`);\n\nreturn [{\n  json: {\n    video_public_id: videoData.public_id,\n    original_video_url: videoData.secure_url,\n    processed_video_url: transformation ? baseUrl : videoData.secure_url,\n    transformation_applied: transformation,\n    avatar_position: avatarPos,\n    avatar_size: avatarSize,\n    note: 'Für komplexe Avatar-Entfernung empfehlen wir Runway ML Inpainting (manuell)'\n  }\n}];"
+      },
+      "id": "744edaab-3567-476b-a6a3-1006039cbdd7",
+      "name": "15. Avatar-Bereich verarbeiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4144,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "efd1352e-c801-478c-90af-ed94c782dabb",
+      "name": "Audio & Video zusammenführen",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        4384,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alle Daten für Shotstack vorbereiten\nconst audioUpload = $('12. Audio zu Catbox hochladen').first().json;\nconst videoData = $('15. Avatar-Bereich verarbeiten').first().json;\nconst metadata = $('10. Übersetzung parsen').first().json;\n\nreturn [{\n  json: {\n    german_audio_url: audioUpload.data,\n    video_url: videoData.processed_video_url,\n    video_public_id: videoData.video_public_id,\n    duration: metadata.duration || 60,\n    german_text: metadata.german_text,\n    title: metadata.title\n  }\n}];"
+      },
+      "id": "5488c334-d70b-455e-b9be-ec41bd34975c",
+      "name": "16. Shotstack vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4624,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.shotstack.io/stage/render",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"timeline\": {\n    \"tracks\": [\n      {\n        \"clips\": [\n          {\n            \"asset\": {\n              \"type\": \"audio\",\n              \"src\": \"{{ $json.german_audio_url }}\"\n            },\n            \"start\": 0,\n            \"length\": \"auto\"\n          }\n        ]\n      },\n      {\n        \"clips\": [\n          {\n            \"asset\": {\n              \"type\": \"video\",\n              \"src\": \"{{ $json.video_url }}\",\n              \"volume\": 0\n            },\n            \"start\": 0,\n            \"length\": \"auto\"\n          }\n        ]\n      }\n    ]\n  },\n  \"output\": {\n    \"format\": \"mp4\",\n    \"resolution\": \"hd\",\n    \"fps\": 30\n  }\n}",
+        "options": {}
+      },
+      "id": "305114f6-cc38-4683-98f2-744bc5f1bf4a",
+      "name": "17. Shotstack Render starten",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4864,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IuxPCple3P2FNoeJ",
+          "name": "Shotstack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "id": "6d2c9caf-39a5-420a-be05-c704e2966b04",
+      "name": "Render abwarten (60s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5104,
+        304
+      ],
+      "webhookId": "wait-render-webhook"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.shotstack.io/stage/render/{{ $('17. Shotstack Render starten').item.json.response.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "32f04072-0b2f-4681-97a4-17af10fc29e6",
+      "name": "18. Render Status prüfen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5344,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IuxPCple3P2FNoeJ",
+          "name": "Shotstack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "render-done",
+              "leftValue": "={{ $json.response.status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "702c1c33-b473-4361-9d0d-c6436292d9c9",
+      "name": "Render fertig?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5584,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "id": "7d99ea73-3c74-44f5-920d-ce58a269da2d",
+      "name": "Nochmal warten (30s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5584,
+        512
+      ],
+      "webhookId": "wait-more-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Finale Ausgabe vorbereiten\nconst renderResult = $('18. Render Status prüfen').first().json;\nconst metadata = $('10. Übersetzung parsen').first().json;\n\nconst finalVideoUrl = renderResult.response?.url;\n\nreturn [{\n  json: {\n    success: true,\n    final_video_url: finalVideoUrl,\n    title: metadata.title + ' (Deutsche Version)',\n    original_text: metadata.original_text,\n    german_text: metadata.german_text,\n    render_id: renderResult.response?.id,\n    message: 'Video erfolgreich übersetzt und zusammengeführt!',\n    notes: [\n      'Das Video enthält nun den deutschen Voiceover.',\n      'Der Avatar-Bereich wurde nach Möglichkeit verarbeitet.',\n      'Für perfekte Avatar-Entfernung empfehlen wir zusätzlich Runway ML Inpainting.'\n    ]\n  }\n}];"
+      },
+      "id": "6ed1ff34-402d-461a-99ee-53924fd7d1a2",
+      "name": "19. Finale Ausgabe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5824,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## YouTube Video Translation Workflow\n\n### Workflow-Übersicht:\n1. **Input**: YouTube URL per Webhook\n2. **Download**: Video und Audio separat herunterladen\n3. **Transkription**: Audio mit OpenAI Whisper transkribieren\n4. **Übersetzung**: Text ins Deutsche übersetzen (GPT-4)\n5. **TTS**: Deutschen Voiceover generieren (OpenAI TTS)\n6. **Avatar**: Bereich verarbeiten (Cloudinary Blur/Crop)\n7. **Merge**: Video + Audio zusammenführen (Shotstack)\n8. **Output**: Fertiges Video mit deutschem Ton\n\n### Benötigte Credentials:\n- Apify API Key\n- OpenAI API Key\n- Cloudinary Account\n- Shotstack API Key\n\n### Avatar-Entfernung Hinweis:\nFür komplexe Avatar-Entfernung (wenn der Avatar sich bewegt oder groß ist) empfehlen wir:\n1. Runway ML Inpainting (manuell)\n2. ProPainter über Replicate API\n3. Alternativ: Video ohne Avatar neu aufnehmen",
+        "height": 664,
+        "width": 400,
+        "color": 4
+      },
+      "id": "60ff7e1c-4839-47d6-a30f-c27fdcfc45e6",
+      "name": "Workflow Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Alternative: Replicate ProPainter\n\nFür automatische Avatar-Entfernung kann die ProPainter API über Replicate verwendet werden.\n\n### Voraussetzungen:\n- Avatar muss an fester Position sein\n- Maske muss definiert werden\n\n### API Endpoint:\n```\nPOST https://api.replicate.com/v1/predictions\n```\n\n### Hinweis:\nDiese Node ist optional und erfordert zusätzliche Konfiguration.",
+        "height": 444,
+        "width": 558,
+        "color": 6
+      },
+      "id": "ee5aeab7-0c18-44d2-8786-4bcd0c0713d7",
+      "name": "ProPainter Alternative",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3904,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "Eingabe YouTube URL",
+        "formFields": {
+          "values": [
+            {
+              "fieldName": "YT Url",
+              "fieldLabel": "YT URL",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.4,
+      "position": [
+        240,
+        208
+      ],
+      "id": "9c73e77a-612e-4ef3-bb42-f1d744e33491",
+      "name": "On form submission",
+      "webhookId": "5cccfb11-84ef-4fa1-aa52-5cfe7a4182c3"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.youtube.com/oembed?url={{ $json['YT Url'] }}&format=json",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "d7a19c80-497e-463e-8d72-a64a65ad298b",
+      "name": "YouTube Video Info abrufen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.supadata.ai/v1/youtube/transcript",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "=https://www.youtube.com/watch?v=lwebcCNmSLw"
+            },
+            {
+              "name": "text",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "b769144f-973d-4efc-a00e-0a9ff5947e0e",
+      "name": "Supadata.ai Transkript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        592,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SUWxUhjcKdSvhnTF",
+          "name": "Supadata.ai"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "2. Metadaten extrahieren": {
+      "main": [
+        [
+          {
+            "node": "3a. Video Download starten",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "3b. Audio Download starten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3a. Video Download starten": {
+      "main": [
+        [
+          {
+            "node": "Download abwarten (30s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3b. Audio Download starten": {
+      "main": [
+        [
+          {
+            "node": "Download abwarten (30s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download abwarten (30s)": {
+      "main": [
+        [
+          {
+            "node": "4a. Video Status prüfen",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "4b. Audio Status prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4a. Video Status prüfen": {
+      "main": [
+        [
+          {
+            "node": "Downloads zusammenführen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4b. Audio Status prüfen": {
+      "main": [
+        [
+          {
+            "node": "Downloads zusammenführen",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Downloads zusammenführen": {
+      "main": [
+        [
+          {
+            "node": "5. Download URLs kombinieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Download URLs kombinieren": {
+      "main": [
+        [
+          {
+            "node": "6. Audio herunterladen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Audio herunterladen": {
+      "main": [
+        [
+          {
+            "node": "7. Audio transkribieren (Whisper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Audio transkribieren (Whisper)": {
+      "main": [
+        [
+          {
+            "node": "8. Transkription aufbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Transkription aufbereiten": {
+      "main": [
+        [
+          {
+            "node": "9. Ins Deutsche übersetzen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Ins Deutsche übersetzen": {
+      "main": [
+        [
+          {
+            "node": "10. Übersetzung parsen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Übersetzung parsen": {
+      "main": [
+        [
+          {
+            "node": "11. Deutsches Audio generieren (TTS)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "13. Video herunterladen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Deutsches Audio generieren (TTS)": {
+      "main": [
+        [
+          {
+            "node": "12. Audio zu Catbox hochladen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Audio zu Catbox hochladen": {
+      "main": [
+        [
+          {
+            "node": "Audio & Video zusammenführen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Video herunterladen": {
+      "main": [
+        [
+          {
+            "node": "14. Video zu Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Video zu Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "15. Avatar-Bereich verarbeiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15. Avatar-Bereich verarbeiten": {
+      "main": [
+        [
+          {
+            "node": "Audio & Video zusammenführen",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Audio & Video zusammenführen": {
+      "main": [
+        [
+          {
+            "node": "16. Shotstack vorbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16. Shotstack vorbereiten": {
+      "main": [
+        [
+          {
+            "node": "17. Shotstack Render starten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17. Shotstack Render starten": {
+      "main": [
+        [
+          {
+            "node": "Render abwarten (60s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render abwarten (60s)": {
+      "main": [
+        [
+          {
+            "node": "18. Render Status prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18. Render Status prüfen": {
+      "main": [
+        [
+          {
+            "node": "Render fertig?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render fertig?": {
+      "main": [
+        [
+          {
+            "node": "19. Finale Ausgabe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nochmal warten (30s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nochmal warten (30s)": {
+      "main": [
+        [
+          {
+            "node": "18. Render Status prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. Finale Ausgabe": {
+      "main": [
+        []
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "YouTube Video Info abrufen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Video Info abrufen": {
+      "main": [
+        [
+          {
+            "node": "Supadata.ai Transkript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supadata.ai Transkript": {
+      "main": [
+        [
+          {
+            "node": "2. Metadaten extrahieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a320365cb8af0cfc53c3cf643590b40b68314b98ffb543a3f03872d936accf51"
+  }
+}
