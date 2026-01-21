@@ -1,9 +1,9 @@
 {
   "meta": {
-    "instanceId": "workflow-ai-visibility-002",
-    "versionId": "2.0.0",
+    "instanceId": "workflow-ai-visibility-003",
+    "versionId": "3.0.0",
     "createdAt": "2026-01-14T10:00:00.000000",
-    "updatedAt": "2026-01-14T19:00:00.000000",
+    "updatedAt": "2026-01-21T10:00:00.000000",
     "owner": "n8n-user",
     "license": "MIT",
     "category": "ai-analysis",
@@ -11,8 +11,8 @@
     "priority": "high",
     "environment": "production"
   },
-  "name": "AI Visibility Checker - Multi-Platform Source Analysis",
-  "description": "Prüft KI-Sichtbarkeit bei ChatGPT, Gemini und Perplexity. Sendet einen HTML-Report mit Quellenangaben pro Plattform per Gmail.",
+  "name": "AI Visibility Checker - Multi-Platform Source Analysis mit Sentiment",
+  "description": "Prüft KI-Sichtbarkeit bei ChatGPT, Gemini und Perplexity. Analysiert Sentiment (positiv/neutral/negativ), ordnet Quellen zu und gibt Content-Empfehlungen.",
   "nodes": [
     {
       "id": "form-trigger-001",
@@ -49,8 +49,7 @@
           "respondWithData": false
         }
       },
-      "typeVersion": 2.2,
-      "notes": "Formular zur Eingabe des Prompts und der E-Mail-Adresse für den Report."
+      "typeVersion": 2.2
     },
     {
       "id": "prepare-prompt-001",
@@ -83,7 +82,7 @@
             {
               "id": "enhanced-prompt",
               "name": "enhancedPrompt",
-              "value": "={{ $json.prompt }}\n\n---\nWICHTIG: Bitte gib zu deiner Antwort alle relevanten Quellen an. Formatiere die Quellen als nummerierte Liste mit:\n- Titel der Quelle\n- URL (wenn verfügbar)\n- Kurze Beschreibung warum diese Quelle relevant ist\n\nWenn du keine spezifischen URLs hast, gib an welche Art von Quellen du verwendet hast (z.B. wissenschaftliche Studien, Nachrichtenportale, offizielle Dokumentationen).",
+              "value": "={{ $json.prompt }}\n\n---\nWICHTIG: Bitte gib zu deiner Antwort alle relevanten Quellen an. Formatiere die Quellen als nummerierte Liste mit:\n- Titel der Quelle\n- URL (wenn verfügbar)\n- Kurze Beschreibung warum diese Quelle relevant ist",
               "type": "string"
             },
             {
@@ -95,8 +94,7 @@
           ]
         }
       },
-      "typeVersion": 3.4,
-      "notes": "Erweitert den Original-Prompt um eine Quellenanforderung."
+      "typeVersion": 3.4
     },
     {
       "id": "chatgpt-api-001",
@@ -131,7 +129,6 @@
         }
       },
       "typeVersion": 4.2,
-      "notes": "Sendet den Prompt an ChatGPT API.",
       "onError": "continueRegularOutput",
       "continueOnFail": true
     },
@@ -168,7 +165,6 @@
         }
       },
       "typeVersion": 4.2,
-      "notes": "Sendet den Prompt an Google Gemini API.",
       "onError": "continueRegularOutput",
       "continueOnFail": true
     },
@@ -209,7 +205,6 @@
         }
       },
       "typeVersion": 4.2,
-      "notes": "Sendet den Prompt an Perplexity API - liefert echte Web-Quellen.",
       "onError": "continueRegularOutput",
       "continueOnFail": true
     },
@@ -232,7 +227,7 @@
             {
               "id": "response",
               "name": "response",
-              "value": "={{ $json.choices?.[0]?.message?.content || $json.error?.message || 'Keine Antwort' }}",
+              "value": "={{ $json.choices?.[0]?.message?.content || $json.output?.[0]?.content?.[0]?.text || $json.error?.message || 'Keine Antwort' }}",
               "type": "string"
             },
             {
@@ -398,25 +393,132 @@
       "parameters": {
         "mode": "append"
       },
-      "typeVersion": 3,
-      "notes": "Führt alle API-Antworten zusammen."
+      "typeVersion": 3
+    },
+    {
+      "id": "prepare-analysis-001",
+      "name": "Daten für Analyse vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "position": [1100, 300],
+      "parameters": {
+        "jsCode": "// Sammle alle Eingaben\nconst items = $input.all();\nconst firstItem = items[0]?.json || {};\n\n// Formulardaten\nconst originalPrompt = firstItem.originalPrompt || 'Kein Prompt';\nconst recipientEmail = firstItem.recipientEmail || '';\nconst markeThema = firstItem.markeThema || 'Allgemein';\nconst timestamp = firstItem.timestamp || new Date().toLocaleString('de-DE');\n\n// Sammle Plattform-Ergebnisse\nconst platforms = {};\nfor (const item of items) {\n  const data = item.json;\n  if (data.platform) {\n    platforms[data.platform] = {\n      success: data.success,\n      content: data.response || 'Keine Antwort',\n      citations: data.citations || []\n    };\n  }\n}\n\n// Erstelle Text für Sentiment-Analyse\nlet analysisText = `Thema/Marke: ${markeThema}\\n\\nOriginal-Prompt: ${originalPrompt}\\n\\n`;\nanalysisText += '=== ANTWORTEN DER KI-PLATTFORMEN ===\\n\\n';\n\nif (platforms.chatgpt) {\n  analysisText += `--- ChatGPT ---\\n${platforms.chatgpt.content}\\n\\n`;\n}\nif (platforms.gemini) {\n  analysisText += `--- Gemini ---\\n${platforms.gemini.content}\\n\\n`;\n}\nif (platforms.perplexity) {\n  analysisText += `--- Perplexity ---\\n${platforms.perplexity.content}\\n`;\n  if (platforms.perplexity.citations.length > 0) {\n    analysisText += `\\nQuellen: ${platforms.perplexity.citations.join(', ')}\\n`;\n  }\n}\n\nreturn {\n  json: {\n    originalPrompt,\n    recipientEmail,\n    markeThema,\n    timestamp,\n    platforms,\n    analysisText\n  }\n};"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "sentiment-analysis-001",
+      "name": "Sentiment-Analyse (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1300, 300],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Du bist ein Experte für Textanalyse und Sentiment-Bewertung. Analysiere die folgenden KI-Antworten und bewerte sie.\\n\\nGib deine Analyse als JSON zurück mit folgendem Format:\\n{\\n  \\\"chatgpt\\\": {\\n    \\\"sentiment\\\": \\\"positiv|neutral|negativ\\\",\\n    \\\"score\\\": 0-100,\\n    \\\"positive_passages\\\": [\\\"...\\\"],\\n    \\\"neutral_passages\\\": [\\\"...\\\"],\\n    \\\"negative_passages\\\": [\\\"...\\\"],\\n    \\\"mentioned_sources\\\": [\\\"...\\\"],\\n    \\\"summary\\\": \\\"...\\\"\\n  },\\n  \\\"gemini\\\": { ... },\\n  \\\"perplexity\\\": { ... },\\n  \\\"overall_summary\\\": \\\"Zusammenfassung über alle Plattformen\\\"\\n}\\n\\nBewerte dabei:\\n- Wie positiv/negativ wird das Thema/die Marke dargestellt?\\n- Welche konkreten Textpassagen sind positiv/neutral/negativ?\\n- Welche Quellen werden erwähnt oder impliziert?\\n- Gib einen Score von 0-100 (0=sehr negativ, 50=neutral, 100=sehr positiv)\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.analysisText) }}\n    }\n  ],\n  \"temperature\": 0.3,\n  \"max_completion_tokens\": 3000,\n  \"response_format\": { \"type\": \"json_object\" }\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "continueOnFail": true
+    },
+    {
+      "id": "process-sentiment-001",
+      "name": "Sentiment verarbeiten",
+      "type": "n8n-nodes-base.set",
+      "position": [1500, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sentiment-result",
+              "name": "sentimentAnalysis",
+              "value": "={{ JSON.parse($json.choices?.[0]?.message?.content || '{}') }}",
+              "type": "object"
+            },
+            {
+              "id": "pass-data",
+              "name": "originalData",
+              "value": "={{ $('Daten für Analyse vorbereiten').item.json }}",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "content-recommendations-001",
+      "name": "Content-Empfehlungen (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1700, 300],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Du bist ein Content-Strategie-Experte für KI-Sichtbarkeit (AI Visibility / AEO - Answer Engine Optimization).\\n\\nBasierend auf der Sentiment-Analyse und den identifizierten Quellen, erstelle konkrete Content-Empfehlungen.\\n\\nGib deine Empfehlungen als JSON zurück:\\n{\\n  \\\"content_recommendations\\\": [\\n    {\\n      \\\"priority\\\": \\\"hoch|mittel|niedrig\\\",\\n      \\\"type\\\": \\\"Blogpost|Whitepaper|FAQ|Pressemitteilung|Fallstudie|etc.\\\",\\n      \\\"title\\\": \\\"Vorgeschlagener Titel\\\",\\n      \\\"description\\\": \\\"Was sollte der Inhalt abdecken?\\\",\\n      \\\"target_sources\\\": [\\\"Welche Quellen sollten auf diesen Content verlinken?\\\"],\\n      \\\"keywords\\\": [\\\"Relevante Keywords\\\"],\\n      \\\"reasoning\\\": \\\"Warum ist dieser Content wichtig für die KI-Sichtbarkeit?\\\"\\n    }\\n  ],\\n  \\\"quick_wins\\\": [\\\"Schnell umsetzbare Maßnahmen\\\"],\\n  \\\"long_term_strategy\\\": \\\"Langfristige Strategie-Empfehlung\\\",\\n  \\\"sources_to_target\\\": [\\n    {\\n      \\\"source\\\": \\\"URL oder Quellentyp\\\",\\n      \\\"action\\\": \\\"Was tun, um dort sichtbar zu werden?\\\"\\n    }\\n  ]\\n}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify('Thema/Marke: ' + $json.originalData.markeThema + '\\n\\nOriginal-Prompt: ' + $json.originalData.originalPrompt + '\\n\\nSentiment-Analyse Ergebnisse:\\n' + JSON.stringify($json.sentimentAnalysis, null, 2) + '\\n\\nIdentifizierte Quellen aus Perplexity:\\n' + ($json.originalData.platforms.perplexity?.citations || []).join('\\n')) }}\n    }\n  ],\n  \"temperature\": 0.5,\n  \"max_completion_tokens\": 3000,\n  \"response_format\": { \"type\": \"json_object\" }\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "continueOnFail": true
     },
     {
       "id": "process-results-001",
       "name": "Report erstellen",
       "type": "n8n-nodes-base.code",
-      "position": [1100, 300],
+      "position": [1900, 300],
       "parameters": {
-        "jsCode": "// Sammle alle Eingaben\nconst items = $input.all();\nconst firstItem = items[0]?.json || {};\n\n// Original-Daten vom Formular\nconst originalPrompt = firstItem.originalPrompt || 'Kein Prompt';\nconst recipientEmail = firstItem.recipientEmail || '';\nconst markeThema = firstItem.markeThema || 'Allgemein';\nconst timestamp = firstItem.timestamp || new Date().toLocaleString('de-DE');\n\n// Hilfsfunktion für Markdown zu HTML\nfunction mdToHtml(text) {\n  if (!text) return '';\n  return text\n    .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')\n    .replace(/\\*(.*?)\\*/g, '<em>$1</em>')\n    .replace(/`(.*?)`/g, '<code>$1</code>')\n    .replace(/\\n/g, '<br>');\n}\n\n// Extrahiere Quellen aus dem Text\nfunction extractSourcesFromText(text) {\n  const sources = [];\n  const urlPattern = /https?:\\/\\/[^\\s<>\"'\\)\\]]+/g;\n  const urls = text.match(urlPattern) || [];\n  const uniqueUrls = [...new Set(urls)];\n  uniqueUrls.forEach((url, idx) => {\n    try {\n      sources.push({\n        nummer: idx + 1,\n        url: url,\n        titel: new URL(url).hostname\n      });\n    } catch(e) {\n      sources.push({\n        nummer: idx + 1,\n        url: url,\n        titel: 'Quelle ' + (idx + 1)\n      });\n    }\n  });\n  return sources;\n}\n\n// Sammle Plattform-Ergebnisse\nconst platforms = {};\nfor (const item of items) {\n  const data = item.json;\n  if (data.platform) {\n    platforms[data.platform] = {\n      success: data.success,\n      content: data.response || 'Keine Antwort',\n      sources: data.citations ? data.citations.map((url, idx) => ({\n        nummer: idx + 1,\n        url: url,\n        titel: 'Quelle ' + (idx + 1)\n      })) : []\n    };\n  }\n}\n\n// Generiere Tabelle für eine Plattform\nfunction generatePlatformSection(name, result, color) {\n  if (!result) {\n    return `\n      <div style=\"margin-bottom: 30px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;\">\n        <div style=\"background-color: ${color}; color: white; padding: 15px;\">\n          <h2 style=\"margin: 0;\">❌ ${name}</h2>\n        </div>\n        <div style=\"padding: 20px;\">\n          <p style=\"color: #6c757d;\">Keine Daten verfügbar</p>\n        </div>\n      </div>\n    `;\n  }\n  \n  const statusIcon = result.success ? '✅' : '❌';\n  const sources = result.sources.length > 0 ? result.sources : extractSourcesFromText(result.content);\n  \n  let sourcesHtml = '';\n  if (sources.length > 0) {\n    sourcesHtml = `\n      <table style=\"width: 100%; border-collapse: collapse; margin-top: 10px;\">\n        <thead>\n          <tr style=\"background-color: #f8f9fa;\">\n            <th style=\"padding: 8px; border: 1px solid #dee2e6; text-align: left;\">#</th>\n            <th style=\"padding: 8px; border: 1px solid #dee2e6; text-align: left;\">Quelle</th>\n            <th style=\"padding: 8px; border: 1px solid #dee2e6; text-align: left;\">URL</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${sources.map(s => `\n            <tr>\n              <td style=\"padding: 8px; border: 1px solid #dee2e6;\">${s.nummer}</td>\n              <td style=\"padding: 8px; border: 1px solid #dee2e6;\">${s.titel || 'Quelle ' + s.nummer}</td>\n              <td style=\"padding: 8px; border: 1px solid #dee2e6;\"><a href=\"${s.url}\" target=\"_blank\">${s.url}</a></td>\n            </tr>\n          `).join('')}\n        </tbody>\n      </table>\n    `;\n  } else {\n    sourcesHtml = '<p style=\"color: #6c757d; font-style: italic;\">Keine expliziten Quellen-URLs in der Antwort gefunden.</p>';\n  }\n  \n  return `\n    <div style=\"margin-bottom: 30px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;\">\n      <div style=\"background-color: ${color}; color: white; padding: 15px;\">\n        <h2 style=\"margin: 0;\">${statusIcon} ${name}</h2>\n      </div>\n      <div style=\"padding: 20px;\">\n        <h3 style=\"color: #495057;\">Antwort:</h3>\n        <div style=\"background-color: #f8f9fa; padding: 15px; border-radius: 4px; max-height: 400px; overflow-y: auto;\">\n          ${mdToHtml(result.content)}\n        </div>\n        <h3 style=\"color: #495057; margin-top: 20px;\">Quellenangaben:</h3>\n        ${sourcesHtml}\n      </div>\n    </div>\n  `;\n}\n\n// HTML Report zusammenbauen\nconst htmlReport = `\n<!DOCTYPE html>\n<html lang=\"de\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>AI Visibility Report</title>\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #ffffff;\">\n  \n  <div style=\"text-align: center; margin-bottom: 30px; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;\">\n    <h1 style=\"margin: 0 0 10px 0;\">🔍 AI Visibility Report</h1>\n    <p style=\"margin: 0; opacity: 0.9;\">Multi-Plattform Quellenanalyse</p>\n  </div>\n  \n  <div style=\"background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #0066cc;\">\n    <h3 style=\"margin: 0 0 10px 0; color: #0066cc;\">📋 Analyse-Details</h3>\n    <table style=\"width: 100%;\">\n      <tr>\n        <td style=\"padding: 5px 0;\"><strong>Zeitpunkt:</strong></td>\n        <td>${timestamp}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 5px 0;\"><strong>Thema/Marke:</strong></td>\n        <td>${markeThema}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 5px 0;\"><strong>Prompt:</strong></td>\n        <td style=\"font-style: italic;\">${originalPrompt}</td>\n      </tr>\n    </table>\n  </div>\n  \n  <h2 style=\"color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px;\">Ergebnisse nach Plattform</h2>\n  \n  ${generatePlatformSection('ChatGPT (GPT-4o)', platforms.chatgpt, '#10a37f')}\n  ${generatePlatformSection('Google Gemini 1.5 Pro', platforms.gemini, '#4285f4')}\n  ${generatePlatformSection('Perplexity', platforms.perplexity, '#20b2aa')}\n  \n  <div style=\"margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; text-align: center;\">\n    <h3 style=\"color: #495057;\">📊 Zusammenfassung</h3>\n    <p>Dieser Report wurde automatisch generiert, um die Sichtbarkeit und Quellenangaben verschiedener KI-Plattformen zu vergleichen.</p>\n    <p style=\"color: #6c757d; font-size: 12px;\">Generiert mit n8n AI Visibility Checker</p>\n  </div>\n  \n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    htmlReport,\n    recipientEmail,\n    subject: `AI Visibility Report: ${markeThema} - ${timestamp}`,\n    originalPrompt\n  }\n};"
+        "jsCode": "// Hole alle Daten\nconst sentimentNode = $('Sentiment verarbeiten').item.json;\nconst recommendationsRaw = $json.choices?.[0]?.message?.content || '{}';\n\nconst originalData = sentimentNode.originalData || {};\nconst sentimentAnalysis = sentimentNode.sentimentAnalysis || {};\nlet contentRecommendations = {};\n\ntry {\n  contentRecommendations = JSON.parse(recommendationsRaw);\n} catch(e) {\n  contentRecommendations = { error: 'Parsing fehlgeschlagen' };\n}\n\nconst { originalPrompt, recipientEmail, markeThema, timestamp, platforms } = originalData;\n\n// Hilfsfunktionen\nfunction mdToHtml(text) {\n  if (!text) return '';\n  return String(text)\n    .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')\n    .replace(/\\*(.*?)\\*/g, '<em>$1</em>')\n    .replace(/`(.*?)`/g, '<code>$1</code>')\n    .replace(/\\n/g, '<br>');\n}\n\nfunction getSentimentColor(sentiment) {\n  switch(sentiment?.toLowerCase()) {\n    case 'positiv': return '#28a745';\n    case 'negativ': return '#dc3545';\n    default: return '#6c757d';\n  }\n}\n\nfunction getSentimentEmoji(sentiment) {\n  switch(sentiment?.toLowerCase()) {\n    case 'positiv': return '😊';\n    case 'negativ': return '😟';\n    default: return '😐';\n  }\n}\n\nfunction generateSentimentBar(score) {\n  const percentage = score || 50;\n  let color = '#6c757d';\n  if (percentage >= 70) color = '#28a745';\n  else if (percentage <= 30) color = '#dc3545';\n  else if (percentage > 50) color = '#9acd32';\n  else if (percentage < 50) color = '#ffa500';\n  \n  return `\n    <div style=\"background: #e9ecef; border-radius: 10px; height: 20px; width: 100%; margin: 10px 0;\">\n      <div style=\"background: ${color}; width: ${percentage}%; height: 100%; border-radius: 10px; text-align: center; color: white; font-size: 12px; line-height: 20px;\">\n        ${percentage}/100\n      </div>\n    </div>\n  `;\n}\n\nfunction generatePlatformSection(name, platformData, sentiment, color) {\n  if (!platformData) {\n    return `\n      <div style=\"margin-bottom: 30px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;\">\n        <div style=\"background-color: ${color}; color: white; padding: 15px;\">\n          <h2 style=\"margin: 0;\">❌ ${name}</h2>\n        </div>\n        <div style=\"padding: 20px;\"><p>Keine Daten verfügbar</p></div>\n      </div>`;\n  }\n  \n  const sentimentEmoji = getSentimentEmoji(sentiment?.sentiment);\n  const sentimentColor = getSentimentColor(sentiment?.sentiment);\n  \n  return `\n    <div style=\"margin-bottom: 30px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;\">\n      <div style=\"background-color: ${color}; color: white; padding: 15px;\">\n        <h2 style=\"margin: 0;\">✅ ${name}</h2>\n      </div>\n      <div style=\"padding: 20px;\">\n        \n        <!-- Sentiment Bewertung -->\n        <div style=\"background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-radius: 8px; margin-bottom: 20px;\">\n          <h3 style=\"margin: 0 0 10px 0; color: #495057;\">📊 Sentiment-Bewertung</h3>\n          <p style=\"margin: 5px 0;\"><strong>Bewertung:</strong> <span style=\"color: ${sentimentColor}; font-weight: bold;\">${sentimentEmoji} ${sentiment?.sentiment || 'Nicht analysiert'}</span></p>\n          ${sentiment?.score !== undefined ? generateSentimentBar(sentiment.score) : ''}\n          ${sentiment?.summary ? `<p style=\"margin: 10px 0 0 0; font-style: italic; color: #6c757d;\">${sentiment.summary}</p>` : ''}\n        </div>\n        \n        <!-- Positive Passagen -->\n        ${sentiment?.positive_passages?.length > 0 ? `\n          <div style=\"background: #d4edda; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #28a745;\">\n            <strong style=\"color: #155724;\">😊 Positive Passagen:</strong>\n            <ul style=\"margin: 10px 0 0 0; padding-left: 20px;\">\n              ${sentiment.positive_passages.map(p => `<li style=\"color: #155724;\">${p}</li>`).join('')}\n            </ul>\n          </div>` : ''}\n        \n        <!-- Neutrale Passagen -->\n        ${sentiment?.neutral_passages?.length > 0 ? `\n          <div style=\"background: #e9ecef; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #6c757d;\">\n            <strong style=\"color: #495057;\">😐 Neutrale Passagen:</strong>\n            <ul style=\"margin: 10px 0 0 0; padding-left: 20px;\">\n              ${sentiment.neutral_passages.map(p => `<li style=\"color: #495057;\">${p}</li>`).join('')}\n            </ul>\n          </div>` : ''}\n        \n        <!-- Negative Passagen -->\n        ${sentiment?.negative_passages?.length > 0 ? `\n          <div style=\"background: #f8d7da; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #dc3545;\">\n            <strong style=\"color: #721c24;\">😟 Negative Passagen:</strong>\n            <ul style=\"margin: 10px 0 0 0; padding-left: 20px;\">\n              ${sentiment.negative_passages.map(p => `<li style=\"color: #721c24;\">${p}</li>`).join('')}\n            </ul>\n          </div>` : ''}\n        \n        <!-- Erwähnte Quellen -->\n        ${sentiment?.mentioned_sources?.length > 0 ? `\n          <div style=\"background: #cce5ff; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #004085;\">\n            <strong style=\"color: #004085;\">📚 Erwähnte Quellen:</strong>\n            <ul style=\"margin: 10px 0 0 0; padding-left: 20px;\">\n              ${sentiment.mentioned_sources.map(s => `<li style=\"color: #004085;\">${s}</li>`).join('')}\n            </ul>\n          </div>` : ''}\n        \n        <!-- Original-Antwort -->\n        <details style=\"margin-top: 15px;\">\n          <summary style=\"cursor: pointer; color: #007bff; font-weight: bold;\">📝 Vollständige Antwort anzeigen</summary>\n          <div style=\"background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 10px; max-height: 300px; overflow-y: auto;\">\n            ${mdToHtml(platformData.content)}\n          </div>\n        </details>\n        \n      </div>\n    </div>\n  `;\n}\n\nfunction generateRecommendationsSection(recs) {\n  if (!recs || recs.error) {\n    return '<p style=\"color: #6c757d;\">Keine Empfehlungen verfügbar.</p>';\n  }\n  \n  let html = '';\n  \n  // Content Empfehlungen\n  if (recs.content_recommendations?.length > 0) {\n    html += '<div style=\"margin-bottom: 30px;\">';\n    html += '<h3 style=\"color: #495057;\">📝 Content-Empfehlungen</h3>';\n    \n    recs.content_recommendations.forEach((rec, idx) => {\n      const priorityColor = rec.priority === 'hoch' ? '#dc3545' : (rec.priority === 'mittel' ? '#ffc107' : '#28a745');\n      const priorityEmoji = rec.priority === 'hoch' ? '🔴' : (rec.priority === 'mittel' ? '🟡' : '🟢');\n      \n      html += `\n        <div style=\"border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 15px; border-left: 4px solid ${priorityColor};\">\n          <div style=\"display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;\">\n            <h4 style=\"margin: 0; color: #333;\">${idx + 1}. ${rec.title || 'Content-Idee'}</h4>\n            <span style=\"background: ${priorityColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;\">${priorityEmoji} ${rec.priority || 'mittel'}</span>\n          </div>\n          <p style=\"margin: 10px 0;\"><strong>Typ:</strong> ${rec.type || 'Nicht spezifiziert'}</p>\n          <p style=\"margin: 10px 0;\">${rec.description || ''}</p>\n          ${rec.keywords?.length > 0 ? `<p style=\"margin: 10px 0;\"><strong>Keywords:</strong> ${rec.keywords.join(', ')}</p>` : ''}\n          ${rec.target_sources?.length > 0 ? `<p style=\"margin: 10px 0;\"><strong>Ziel-Quellen:</strong> ${rec.target_sources.join(', ')}</p>` : ''}\n          ${rec.reasoning ? `<p style=\"margin: 10px 0; font-style: italic; color: #6c757d;\"><strong>Begründung:</strong> ${rec.reasoning}</p>` : ''}\n        </div>\n      `;\n    });\n    html += '</div>';\n  }\n  \n  // Quick Wins\n  if (recs.quick_wins?.length > 0) {\n    html += `\n      <div style=\"background: #d4edda; padding: 20px; border-radius: 8px; margin-bottom: 20px;\">\n        <h3 style=\"margin: 0 0 15px 0; color: #155724;\">⚡ Quick Wins</h3>\n        <ul style=\"margin: 0; padding-left: 20px;\">\n          ${recs.quick_wins.map(qw => `<li style=\"margin-bottom: 8px;\">${qw}</li>`).join('')}\n        </ul>\n      </div>\n    `;\n  }\n  \n  // Langfristige Strategie\n  if (recs.long_term_strategy) {\n    html += `\n      <div style=\"background: #e7f3ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0066cc;\">\n        <h3 style=\"margin: 0 0 10px 0; color: #004085;\">🎯 Langfristige Strategie</h3>\n        <p style=\"margin: 0; color: #004085;\">${recs.long_term_strategy}</p>\n      </div>\n    `;\n  }\n  \n  // Ziel-Quellen\n  if (recs.sources_to_target?.length > 0) {\n    html += `\n      <div style=\"margin-bottom: 20px;\">\n        <h3 style=\"color: #495057;\">🎯 Ziel-Quellen für Sichtbarkeit</h3>\n        <table style=\"width: 100%; border-collapse: collapse;\">\n          <thead>\n            <tr style=\"background: #f8f9fa;\">\n              <th style=\"padding: 10px; border: 1px solid #dee2e6; text-align: left;\">Quelle</th>\n              <th style=\"padding: 10px; border: 1px solid #dee2e6; text-align: left;\">Empfohlene Aktion</th>\n            </tr>\n          </thead>\n          <tbody>\n            ${recs.sources_to_target.map(s => `\n              <tr>\n                <td style=\"padding: 10px; border: 1px solid #dee2e6;\">${s.source || '-'}</td>\n                <td style=\"padding: 10px; border: 1px solid #dee2e6;\">${s.action || '-'}</td>\n              </tr>\n            `).join('')}\n          </tbody>\n        </table>\n      </div>\n    `;\n  }\n  \n  return html;\n}\n\n// HTML Report zusammenbauen\nconst htmlReport = `\n<!DOCTYPE html>\n<html lang=\"de\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>AI Visibility Report mit Sentiment-Analyse</title>\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #ffffff;\">\n  \n  <!-- Header -->\n  <div style=\"text-align: center; margin-bottom: 30px; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;\">\n    <h1 style=\"margin: 0 0 10px 0;\">🔍 AI Visibility Report</h1>\n    <p style=\"margin: 0; opacity: 0.9;\">Multi-Plattform Analyse mit Sentiment-Bewertung</p>\n  </div>\n  \n  <!-- Analyse-Details -->\n  <div style=\"background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #0066cc;\">\n    <h3 style=\"margin: 0 0 10px 0; color: #0066cc;\">📋 Analyse-Details</h3>\n    <p><strong>Zeitpunkt:</strong> ${timestamp}</p>\n    <p><strong>Thema/Marke:</strong> ${markeThema}</p>\n    <p><strong>Prompt:</strong> <em>${originalPrompt}</em></p>\n  </div>\n  \n  <!-- Gesamtübersicht -->\n  ${sentimentAnalysis.overall_summary ? `\n    <div style=\"background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; margin-bottom: 30px; color: white;\">\n      <h3 style=\"margin: 0 0 10px 0;\">📊 Gesamt-Zusammenfassung</h3>\n      <p style=\"margin: 0; font-size: 16px;\">${sentimentAnalysis.overall_summary}</p>\n    </div>\n  ` : ''}\n  \n  <!-- Ergebnisse nach Plattform -->\n  <h2 style=\"color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px;\">Ergebnisse nach Plattform</h2>\n  \n  ${generatePlatformSection('ChatGPT (GPT-4o)', platforms?.chatgpt, sentimentAnalysis?.chatgpt, '#10a37f')}\n  ${generatePlatformSection('Google Gemini 1.5 Pro', platforms?.gemini, sentimentAnalysis?.gemini, '#4285f4')}\n  ${generatePlatformSection('Perplexity', platforms?.perplexity, sentimentAnalysis?.perplexity, '#20b2aa')}\n  \n  <!-- Content-Empfehlungen -->\n  <h2 style=\"color: #333; border-bottom: 2px solid #f5576c; padding-bottom: 10px; margin-top: 40px;\">🚀 Content-Empfehlungen für KI-Sichtbarkeit</h2>\n  \n  ${generateRecommendationsSection(contentRecommendations)}\n  \n  <!-- Footer -->\n  <div style=\"margin-top: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; text-align: center;\">\n    <h3 style=\"color: #495057;\">📈 Nächste Schritte</h3>\n    <p>Setzen Sie die Content-Empfehlungen um, um Ihre Sichtbarkeit in KI-Systemen zu verbessern.</p>\n    <p style=\"color: #6c757d; font-size: 12px;\">Generiert mit n8n AI Visibility Checker v3.0</p>\n  </div>\n  \n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    htmlReport,\n    recipientEmail: recipientEmail || '',\n    subject: `AI Visibility Report: ${markeThema} - ${timestamp}`,\n    originalPrompt\n  }\n};"
       },
-      "typeVersion": 2,
-      "notes": "Verarbeitet die Ergebnisse und erstellt den HTML-Report."
+      "typeVersion": 2
     },
     {
       "id": "gmail-send-001",
       "name": "Report per Gmail senden",
       "type": "n8n-nodes-base.gmail",
-      "position": [1300, 300],
+      "position": [2100, 300],
       "parameters": {
         "resource": "message",
         "operation": "send",
@@ -434,8 +536,7 @@
           "name": "Gmail Account"
         }
       },
-      "typeVersion": 2.1,
-      "notes": "Sendet den HTML-Report per Gmail."
+      "typeVersion": 2.1
     },
     {
       "id": "sticky-note-info-001",
@@ -444,170 +545,83 @@
       "position": [-200, 100],
       "parameters": {
         "color": 6,
-        "width": 350,
-        "height": 180,
-        "content": "# 🔍 AI Visibility Checker\n\n**Zweck:** Prüft KI-Sichtbarkeit bei mehreren Plattformen und sammelt Quellenangaben.\n\n**Plattformen:**\n- ChatGPT (GPT-4o)\n- Google Gemini 1.5 Pro\n- Perplexity (mit echten Web-Quellen)\n\n**Output:** HTML-Report per Gmail"
+        "width": 400,
+        "height": 250,
+        "content": "# 🔍 AI Visibility Checker v3.0\n\n**Neue Features:**\n- ✅ Sentiment-Analyse (positiv/neutral/negativ)\n- ✅ Textpassagen-Bewertung pro Plattform\n- ✅ Quellen-Zuordnung\n- ✅ Content-Empfehlungen für KI-Sichtbarkeit\n- ✅ Quick Wins & Langzeit-Strategie\n\n**Plattformen:**\n- ChatGPT (GPT-4o)\n- Google Gemini 1.5 Pro\n- Perplexity (mit Web-Quellen)"
       },
       "typeVersion": 1
     },
     {
-      "id": "sticky-note-credentials-001",
-      "name": "Credentials Hinweis",
+      "id": "sticky-note-new-001",
+      "name": "Neue Analyse-Nodes",
       "type": "n8n-nodes-base.stickyNote",
-      "position": [450, -50],
+      "position": [1250, 100],
       "parameters": {
-        "color": 3,
-        "width": 350,
-        "height": 130,
-        "content": "# ⚠️ Credentials einrichten\n\nBitte folgende API-Credentials in n8n konfigurieren:\n1. **OpenAI API** - für ChatGPT\n2. **Google AI API** - für Gemini\n3. **Perplexity API** - für Perplexity\n4. **Gmail OAuth2** - für E-Mail-Versand"
+        "color": 5,
+        "width": 500,
+        "height": 120,
+        "content": "# 🆕 Neue Analyse-Pipeline\n\n**1. Sentiment-Analyse:** Bewertet Texte nach positiv/neutral/negativ\n**2. Content-Empfehlungen:** Gibt konkrete Handlungsempfehlungen für KI-Sichtbarkeit"
       },
       "typeVersion": 1
     }
   ],
   "connections": {
     "form-trigger-001": {
-      "main": [
-        [
-          {
-            "node": "prepare-prompt-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "prepare-prompt-001", "type": "main", "index": 0}]]
     },
     "prepare-prompt-001": {
-      "main": [
-        [
-          {
-            "node": "chatgpt-api-001",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "gemini-api-001",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "perplexity-api-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[
+        {"node": "chatgpt-api-001", "type": "main", "index": 0},
+        {"node": "gemini-api-001", "type": "main", "index": 0},
+        {"node": "perplexity-api-001", "type": "main", "index": 0}
+      ]]
     },
     "chatgpt-api-001": {
-      "main": [
-        [
-          {
-            "node": "chatgpt-set-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "chatgpt-set-001", "type": "main", "index": 0}]]
     },
     "gemini-api-001": {
-      "main": [
-        [
-          {
-            "node": "gemini-set-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "gemini-set-001", "type": "main", "index": 0}]]
     },
     "perplexity-api-001": {
-      "main": [
-        [
-          {
-            "node": "perplexity-set-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "perplexity-set-001", "type": "main", "index": 0}]]
     },
     "chatgpt-set-001": {
-      "main": [
-        [
-          {
-            "node": "merge-results-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "merge-results-001", "type": "main", "index": 0}]]
     },
     "gemini-set-001": {
-      "main": [
-        [
-          {
-            "node": "merge-results-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "merge-results-001", "type": "main", "index": 0}]]
     },
     "perplexity-set-001": {
-      "main": [
-        [
-          {
-            "node": "merge-results-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "merge-results-001", "type": "main", "index": 0}]]
     },
     "merge-results-001": {
-      "main": [
-        [
-          {
-            "node": "process-results-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "prepare-analysis-001", "type": "main", "index": 0}]]
+    },
+    "prepare-analysis-001": {
+      "main": [[{"node": "sentiment-analysis-001", "type": "main", "index": 0}]]
+    },
+    "sentiment-analysis-001": {
+      "main": [[{"node": "process-sentiment-001", "type": "main", "index": 0}]]
+    },
+    "process-sentiment-001": {
+      "main": [[{"node": "content-recommendations-001", "type": "main", "index": 0}]]
+    },
+    "content-recommendations-001": {
+      "main": [[{"node": "process-results-001", "type": "main", "index": 0}]]
     },
     "process-results-001": {
-      "main": [
-        [
-          {
-            "node": "gmail-send-001",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "gmail-send-001", "type": "main", "index": 0}]]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": null,
     "timezone": "Europe/Berlin",
-    "executionTimeout": 300,
-    "maxExecutions": 100,
-    "retryOnFail": true,
-    "retryCount": 2,
-    "retryDelay": 5000
+    "executionTimeout": 600,
+    "maxExecutions": 100
   },
-  "tags": [
-    "ai-visibility",
-    "multi-platform",
-    "source-analysis",
-    "report-generation",
-    "gmail",
-    "chatgpt",
-    "gemini",
-    "perplexity"
-  ],
+  "tags": ["ai-visibility", "sentiment-analysis", "content-strategy", "multi-platform"],
   "pinData": {},
-  "notes": "AI Visibility Checker Workflow v2 - Prüft einen Prompt bei ChatGPT, Gemini und Perplexity, sammelt Quellenangaben und sendet einen formatierten HTML-Report per Gmail."
+  "notes": "AI Visibility Checker v3.0 - Mit Sentiment-Analyse und Content-Empfehlungen"
 }
